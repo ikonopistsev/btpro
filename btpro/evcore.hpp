@@ -190,7 +190,7 @@ public:
         return event_get_callback_arg(assert_handle());
     }
 
-    // выполнить калбек напрямую
+    // выполнить обратный вызов напрямую
     void exec(event_flag_t ef)
     {
         auto handle = assert_handle();

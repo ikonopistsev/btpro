@@ -51,6 +51,8 @@ public:
     queue& operator=(const queue&) = delete;
 
     queue() = default;
+    queue(queue&&) = default;
+    queue& operator=(queue&&) = default;
 
     explicit queue(const config& cfg)
         : handle_{create(cfg), event_base_free}

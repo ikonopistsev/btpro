@@ -77,8 +77,8 @@ public:
         int r = static_cast<int>(family()) - static_cast<int>(other.family());
         if (!r)
         {
-            int sz = static_cast<int>(size());
-            int s = sz - static_cast<int>(other.size());
+            std::size_t sz = static_cast<std::size_t>(size());
+            int s = static_cast<int>(sz) - static_cast<int>(other.size());
             if (!s)
                 return std::memcmp(sa(), other.sa(), sz);
             return s;

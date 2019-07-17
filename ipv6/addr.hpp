@@ -1,7 +1,9 @@
 #pragma once
 
 #include "btpro/ip/addr.hpp"
-#include "btdef.hpp"
+#include "btdef/string.hpp"
+#include "btdef/text.hpp"
+#include "btdef/ref.hpp"
 
 namespace btpro {
 namespace ip {
@@ -49,7 +51,7 @@ private:
                 if (f < str.size())
                 {
                     // чтобы не копировать строку
-                    auto port_str = ref::string(str).substr(f);
+                    auto port_str = btref::string(str).substr(f);
                     if (!port_str.empty())
                         port = std::atoi(port_str.data());
                 }

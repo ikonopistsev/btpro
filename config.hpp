@@ -1,7 +1,7 @@
 #pragma once
 
 #include "btpro/btpro.hpp"
-#include "btdef.hpp"
+#include "btdef/ref/string.hpp"
 #include <vector>
 
 namespace btpro {

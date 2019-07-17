@@ -181,6 +181,7 @@ public:
         return static_cast<int>(ntohs(sockaddr_in_.sin_port));
     }
 
+private:
     template<class T>
     struct print
     {
@@ -199,6 +200,7 @@ public:
         }
     };
 
+public:
     btdef::util::text to_text() const noexcept
     {
         print<btdef::util::text> p;

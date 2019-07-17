@@ -38,6 +38,11 @@ public:
     addr(const addr&) = default;
     addr& operator=(const addr&) = default;
 
+    static addr create(sockaddr* sockaddr, ev_socklen_t socklen) noexcept
+    {
+        return addr(sockaddr, socklen);
+    }
+
     family_type family() const noexcept
     {
         return sa()->sa_family;

@@ -10,7 +10,7 @@ template<class T>
 class acceptorfn
 {
 public:
-    typedef void (T::*callback_fn)(be::socket, sock_addr);
+    typedef void (T::*callback_fn)(socket, ip::addr);
     typedef void (T::*on_throw_t)(std::exception_ptr);
     typedef acceptorfn<T> this_type;
     typedef listener::handle_t handle_t;
@@ -47,8 +47,8 @@ private:
     {
         try
         {
-            (self_.*fn_)(be::socket(fd), sock_addr(sa, salen));
-            return;
+            (self_.*fn_)(be::socket(fd),
+                ip::addr::create(sa, static_cast<socklen_t>(salen)));
         }
         catch (...)
         {
@@ -73,6 +73,7 @@ public:
     {
         listener_.listen(queue, flags, backlog,
             sa, proxy<this_type>::evcb, this);
+
         return *this;
     }
 
@@ -85,6 +86,11 @@ public:
     acceptorfn& listen(be::queue& queue, const ip::addr& sa)
     {
         return listen(queue, 0, sa, -1);
+    }
+
+    acceptorfn& set(callback_fn fn) const noexcept
+    {
+        fn_ = fn;
     }
 
     acceptorfn& set(on_throw_t fn) const noexcept

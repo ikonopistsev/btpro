@@ -6,7 +6,11 @@ CONFIG += staticlib c++14 warn_on
 
 TARGET = btpro
 
-INCLUDEPATH += ../ ../btdef
+CONFIG(release, debug|release) {
+    DEFINES += NDEBUG
+}
+
+INCLUDEPATH += ../
 
 unix:!macx {
     CONFIG += link_pkgconfig

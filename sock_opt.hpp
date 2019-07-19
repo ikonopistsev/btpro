@@ -29,7 +29,8 @@ public:
 
     void apply(evutil_socket_t fd) const
     {
-        auto res = ::setsockopt(fd, SO_LEVEL, SO_OPTID, &val_, sizeof(val_));
+        auto res = ::setsockopt(fd, SO_LEVEL, SO_OPTID, 
+            reinterpret_cast<const char*>(&val_), sizeof(val_));
         if (code::fail == res)
             throw std::system_error(net::error_code(), name_);
     }

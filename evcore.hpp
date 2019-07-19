@@ -36,6 +36,11 @@ private:
 public:
     evcore() = default;
 
+    ~evcore() noexcept
+    {
+        event_.free();
+    }
+
     void create(queue::handle_t queue, evutil_socket_t fd, event_flag_t ef,
         event_callback_fn fn, void *arg)
     {
@@ -140,10 +145,10 @@ public:
         return *this;
     }
 
-    //    Warning: This function is only useful for distinguishing a a zeroed-out
-    //      piece of memory from an initialized event, it can easily be confused by
-    //      uninitialized memory.  Thus, it should ONLY be used to distinguish an
-    //      initialized event from zero.
+    // Warning: This function is only useful for distinguishing a a zeroed-out
+    //   piece of memory from an initialized event, it can easily be confused by
+    //   uninitialized memory.  Thus, it should ONLY be used to distinguish an
+    //   initialized event from zero.
     bool initialized() const noexcept
     {
         return !event_.empty();

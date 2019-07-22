@@ -51,13 +51,16 @@ public:
         create(queue.handle(), -1, ef, fn, arg);
     }
 
-    void destroy() noexcept
+    void free() noexcept
     {
         if (!empty())
-        {
             event_del(&event_);
-            event_ = empty_event();
-        }
+    }
+
+    void destroy() noexcept
+    {
+        free();
+        event_ = empty_event();
     }
 
     event_handle_t handle() const noexcept

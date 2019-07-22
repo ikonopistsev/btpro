@@ -61,13 +61,19 @@ public:
         handle_ = other.handle();
     }
 
-    void destroy() noexcept
+    void free() noexcept
     {
         if (handle_)
         {
+            event_del(handle_);
             event_free(handle_);
-            handle_ = nullptr;
         }
+    }
+
+    void destroy() noexcept
+    {
+        free();
+        handle_ = nullptr;
     }
 
     event_handle_t handle() const noexcept

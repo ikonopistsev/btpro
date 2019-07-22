@@ -3,7 +3,7 @@
 #include "btpro/wsa/error_code.hpp"
 
 #ifndef BTPRO_INVALID_SOCKET
-#define BTPRO_INVALID_SOCKET INVALID_SOCKET
+#define BTPRO_INVALID_SOCKET static_cast<int>(INVALID_SOCKET)
 #endif // BTPRO_INVALID_SOCKET
 
 typedef ULONG in_addr_t;
@@ -30,7 +30,7 @@ struct launch
 typedef evutil_socket_t socket_t;
 
 #define BTPRO_SOCK_ERROR(e) WSA ## e
-static constexpr auto invalid = static_cast<int>(BTPRO_INVALID_SOCKET);
+static constexpr auto invalid = int{ BTPRO_INVALID_SOCKET };
 static constexpr auto eacces = int{ BTPRO_SOCK_ERROR(EACCES) };
 static constexpr auto eaddrnoavail = int{ BTPRO_SOCK_ERROR(EADDRNOTAVAIL) };
 static constexpr auto eisconn = int{ BTPRO_SOCK_ERROR(EISCONN) };

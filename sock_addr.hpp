@@ -55,8 +55,18 @@ public:
         : ip::addr(selfaddr())
     {   }
 
-    sock_addr(const sock_addr&) = default;
-    sock_addr& operator=(const sock_addr&) = default;
+    sock_addr(const sock_addr& other) noexcept
+        : ip::addr(selfaddr(), other.size())
+    {
+        sockaddr_storage_ = other.sockaddr_storage_;
+    }
+
+    sock_addr& operator=(const sock_addr& other) noexcept
+    {
+        sockaddr_storage_ = other.sockaddr_storage_;
+        set_socklen(other.size());
+        return *this;
+    }
 
     explicit sock_addr(const sockaddr *sa, ev_socklen_t socklen)
         : ip::addr(selfaddr(), socklen)

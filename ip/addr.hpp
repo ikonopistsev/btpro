@@ -21,10 +21,10 @@ protected:
         assert(sockaddr);
     }
 
-    addr(sockaddr* sockaddr, ev_socklen_t socklen) noexcept
+    explicit addr(sockaddr* sockaddr, ev_socklen_t socklen) noexcept
         : sockaddr_(sockaddr)
         , socklen_(socklen)
-    {   
+    {
         assert(sockaddr && (socklen > 0));
     }
 

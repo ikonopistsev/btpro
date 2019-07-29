@@ -5,11 +5,11 @@
 #include "btpro/socket.hpp"
 
 #include "event2/bufferevent.h"
-#include "event2/bufferevent_struct.h"
+//#include "event2/bufferevent_struct.h"
 
 #include <functional>
 
-namespace evnet {
+namespace btpro {
 namespace tcp {
 
 class bev
@@ -30,39 +30,14 @@ private:
     std::unique_ptr<bufferevent, decltype(&leave)>
         handle_{ nullptr, leave };
 
-    template<typename T>
-    struct inner
+    buffer::handle_t output() const noexcept
     {
-        static void sign(handle_t, short ev, void *obj) noexcept
-        {
-            assert(obj);
-            static_cast<T*>(obj)->do_event(ev);
-        }
-
-        static void send(handle_t, void *obj) noexcept
-        {
-            assert(obj);
-            static_cast<T*>(obj)->do_send();
-        }
-
-        static void recv(handle_t, void *obj) noexcept
-        {
-            assert(obj);
-            static_cast<T*>(obj)->do_recv();
-        }
-
-        static void sended(const void *, size_t, void *obj) noexcept
-        {
-            assert(obj);
-            T *sh = static_cast<T*>(obj);
-            sh->call();
-            delete sh;
-        }
-    };
+        return bufferevent_get_output(handle());
+    }
 
     std::size_t output_length() const noexcept
     {
-        return evbuffer_get_length(bufferevent_get_output(handle()));
+        return evbuffer_get_length(output());
     }
 
     std::size_t input_length() const noexcept
@@ -80,117 +55,58 @@ private:
         return input_length() == 0;
     }
 
-
-    void do_event(short ev) noexcept
-    {
-        try
-        {
-            // коннект будет 0
-            if (ev & BEV_EVENT_CONNECTED)
-                ev = 0;
-
-            // таймаут сбрасывает фалги
-            if (ev & BEV_EVENT_TIMEOUT)
-            {
-                if (ev & BEV_EVENT_READING)
-                {
-                    if (recv_)
-                        enable(EV_READ);
-                }
-                if (ev & BEV_EVENT_WRITING)
-                {
-                    if (!is_output_empty())
-                        enable(EV_WRITE);
-                }
-            }
-
-            handler_noexcept(event_, ev);
-
-            if (ev & BEV_EVENT_ERROR)
-                handler_noexcept(error_, socket_error(), error());
-        }
-        catch (const std::exception& e)
-        {
-            error_noexept(500, e.what());
-        }
-        catch (...)
-        {
-            error_noexept(500, "do_event");
-        }
-    }
-
-    be::buffer::handle_t output_handle() const
-    {
-        return bufferevent_get_output(handle());
-    }
-
-    be::buffer::handle_t input_handle() const
-    {
-        return bufferevent_get_input(handle());
-    }
-
-    be::buffer output() const
-    {
-        return be::buffer(output_handle());
-    }
-
-    be::buffer input() const
-    {
-        return be::buffer(input_handle());
-    }
-
-    bev& check_result(const char *what, int result)
+    void check_result(const char *what, int result)
     {
         assert(what);
         assert(what[0] != '\0');
-        if (result == result::fail)
+        if (result == code::fail)
             throw std::runtime_error(what);
-        return *this;
     }
 
-    template<typename T>
-    void error_noexept(int code, const T& what) const noexcept
+    // create a new socket bufferevent over an existing socket
+    static inline handle_t create_bufferevent(queue& queue, int opt)
     {
-        try
-        {
-            if (error_)
-                error_(code, what);
-        }
-        catch (...)
-        {   }
+        auto handle = bufferevent_socket_new(queue.handle(), -1, opt);
+        if (!handle)
+            throw std::runtime_error("bufferevent_socket_new");
+        return handle;
     }
 
-    template<typename T, typename... A>
-    void handler_noexcept(T&& func, A&&... arg) const noexcept
+    // create a new socket bufferevent over an existing socket
+    static inline handle_t create_bufferevent(queue& queue,
+        socket sock, int opt)
     {
-        try
-        {
-            if (func)
-                func(std::forward<A>(arg)...);
-        }
-        catch (const std::exception& e)
-        {
-            error_noexept(600, e.what());
-        }
-        catch (...)
-        {   }
+        auto handle = bufferevent_socket_new(queue.handle(), sock.fd(), opt);
+        if (!handle)
+            throw std::runtime_error("bufferevent_socket_new");
+        return handle;
     }
 
 public:
     bev() = default;
-    bev(bev&) = delete;
-    bev& operator=(bev& buffer) = delete;
+    bev(bev&&) = default;
+    bev& operator=(bev&&) = default;
 
-    static constexpr auto bev_opt = int{
-        LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE
-    };
+    // create a new socket bufferevent
+    explicit bev(queue& queue, int opt)
+        : handle_(create_bufferevent(queue, opt), &destroy)
+    {   }
 
-    explicit bev(queue& queue, be::socket sock, int opt);
+    // create a new socket bufferevent over an existing socket
+    explicit bev(queue& queue, be::socket sock, int opt)
+        : handle_(create_bufferevent(queue, sock, opt), &destroy)
+    {   }
 
-    bev& attach(queue& queue, be::socket sock)
+    void connect(const sockaddr* sa, ev_socklen_t len)
     {
-        bufferevent_socket_new()
-        return *this;
+        assert(sa);
+        check_result("bufferevent_socket_connect",
+            bufferevent_socket_connect(handle(), sa, static_cast<int>(len)));
+    }
+
+    void connect(const ip::addr& addr)
+    {
+        connect(addr.sa(), addr.size());
     }
 
     handle_t handle() const noexcept
@@ -205,15 +121,15 @@ public:
         return be::socket(bufferevent_getfd(handle()));
     }
 
-    bev& enable(short event)
+    void enable(short event)
     {
-        return check_result("bufferevent_enable",
+        check_result("bufferevent_enable",
             bufferevent_enable(handle(), event));
     }
 
-    bev& disable(short event)
+    void disable(short event)
     {
-        return check_result("bufferevent_disable",
+        check_result("bufferevent_disable",
             bufferevent_disable(handle(), event));
     }
 
@@ -237,45 +153,91 @@ public:
         bufferevent_unlock(handle());
     }
 
-    bev& send(buffer buf)
+    void write(const void *data, std::size_t size)
     {
-        if (!buf.empty())
+        check_result("bufferevent_write",
+            bufferevent_write(handle(), data, size));
+    }
+
+    static inline void ref_clean_all(const void *data,
+        size_t, void *extra) noexcept
+    {
+        assert(data);
+        assert(extra);
+
+        free(const_cast<void*>(data));
+        auto fn = static_cast<std::function<void()>*>(extra);
+
+        try
         {
-            auto outbuf = bufferevent_get_output(handle());
-            check_result("evbuffer_add_buffer",
-                evbuffer_add_buffer(outbuf, buf.handle()));
-            return enable(EV_WRITE);
+
+            (*fn)();
+
         }
-        return *this;
+        catch (...)
+        {   }
+
+        delete fn;
     }
 
-    bev& set(queue& queue)
+    static inline void ref_clean_fn(const void*, size_t, void *extra) noexcept
     {
-        return check_result("bufferevent_base_set", 
+        assert(extra);
+        auto fn = static_cast<std::function<void()>*>(extra);
+        try
+        {
+            (*fn)();
+        }
+        catch (...)
+        {   }
+
+        delete fn;
+    }
+
+    template<class F>
+    void write(const void *data, std::size_t size, F fn)
+    {
+        assert(data);
+
+        // копируем каллбек
+        auto fn_ptr = new std::function<void()>(std::forward<F>(fn));
+        // выделяем память под буфер
+        auto ptr = malloc(size);
+        check_result("write mem allock",
+            ptr != nullptr ? code::sucsess : code::fail);
+
+        // копируем память
+        memcpy(ptr, data, size);
+
+        check_result("evbuffer_add_reference",
+            evbuffer_add_reference(output(), ptr, size, ref_clean_all, fn_ptr));
+    }
+
+    template<class F>
+    void write_ref(const void *data, std::size_t size, F fn)
+    {
+        assert(data);
+
+        // копируем каллбек
+        auto fn_ptr = new std::function<void()>(std::forward<F>(fn));
+        // выделяем память под буфер
+
+        check_result("evbuffer_add_reference",
+            evbuffer_add_reference(output(), data, size, ref_clean_fn, fn_ptr));
+    }
+
+    void write(buffer data)
+    {
+        check_result("bufferevent_write",
+            bufferevent_write_buffer(handle(), data.handle()));
+    }
+
+    // assign a bufferevent to a specific event_base.
+    // NOTE that only socket bufferevents support this function.
+    void set(queue& queue)
+    {
+        check_result("bufferevent_base_set",
             bufferevent_base_set(queue.handle(), handle()));
-    }
-
-    bev& set(short events, std::size_t lo, std::size_t hi) noexcept
-    {
-        bufferevent_setwatermark(handle(), events, lo, hi);
-        return *this;
-    }
-
-    bev& set(short events, const timeval& tv)
-    {
-        const timeval *rtv = (events & EV_READ) ? &tv : nullptr;
-        const timeval *wtv = (events & EV_WRITE) ? &tv : nullptr;
-
-        check_result("bufferevent_set_timeouts",
-            bufferevent_set_timeouts(handle(), rtv, wtv));
-
-        return enable(events);
-    }
-
-    template<class Rep, class Per>
-    bev& set(short events, std::chrono::duration<Rep, Per>& timeout)
-    {
-        return set(make_timeval(timeout));
     }
 };
 

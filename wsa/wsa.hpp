@@ -3,7 +3,7 @@
 #include "btpro/wsa/error_code.hpp"
 
 #ifndef BTPRO_INVALID_SOCKET
-#define BTPRO_INVALID_SOCKET static_cast<int>(INVALID_SOCKET)
+#define BTPRO_INVALID_SOCKET -1
 #endif // BTPRO_INVALID_SOCKET
 
 typedef ULONG in_addr_t;

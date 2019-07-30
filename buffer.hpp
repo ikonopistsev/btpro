@@ -38,12 +38,6 @@ private:
         return handle;
     }
 
-    static inline void free_mem(const void *, size_t, void *ptr) noexcept
-    {
-        assert(ptr);
-        free(ptr);
-    }
-
     buffer& check_result(const char *what, int result)
     {
         assert(what);

@@ -159,43 +159,64 @@ public:
             bufferevent_write(handle(), data, size));
     }
 
-    static inline void ref_clean_all(const void *data,
-        size_t, void *extra) noexcept
+private:
+    template<class F>
+    struct ref_buffer
+    {
+        static void clean_fn(const void*, size_t, void* extra) noexcept
+        {
+            assert(extra);
+            
+            auto fn = static_cast<F*>(extra);
+
+            try
+            {
+                (*fn)();
+            }
+            catch (...)
+            {    }
+
+            delete fn;
+        }
+
+        static void clean_fn_all(const void* data, size_t, void* extra) noexcept
+        {
+            assert(data);
+            assert(extra);
+
+            free(const_cast<void*>(data));
+
+            auto fn = static_cast<F*>(extra);
+
+            try
+            {
+                (*fn)();
+            }
+            catch (...)
+            {   }
+
+            delete fn;
+        }
+    };
+
+
+public:
+    template<class F>
+    void write_ref(const void* data, std::size_t size, F fn)
     {
         assert(data);
-        assert(extra);
 
-        free(const_cast<void*>(data));
-        auto fn = static_cast<std::function<void()>*>(extra);
+        // копируем каллбек
+        auto fn_ptr = new std::function<void()>(std::forward<F>(fn));
+        // выделяем память под буфер
 
-        try
-        {
-
-            (*fn)();
-
-        }
-        catch (...)
-        {   }
-
-        delete fn;
-    }
-
-    static inline void ref_clean_fn(const void*, size_t, void *extra) noexcept
-    {
-        assert(extra);
-        auto fn = static_cast<std::function<void()>*>(extra);
-        try
-        {
-            (*fn)();
-        }
-        catch (...)
-        {   }
-
-        delete fn;
+        check_result("evbuffer_add_reference",
+            evbuffer_add_reference(output(), data, size,
+                ref_buffer<std::function<void()>>::clean_fn, fn_ptr));
     }
 
     template<class F>
-    void write(const void *data, std::size_t size, F fn)
+    void write(const void* data, std::size_t size, F fn)
     {
         assert(data);
 
@@ -210,21 +231,10 @@ public:
         memcpy(ptr, data, size);
 
         check_result("evbuffer_add_reference",
-            evbuffer_add_reference(output(), ptr, size, ref_clean_all, fn_ptr));
+            evbuffer_add_reference(output(), ptr, size, 
+                ref_buffer<std::function<void()>>::clean_fn_all, fn_ptr));
     }
 
-    template<class F>
-    void write_ref(const void *data, std::size_t size, F fn)
-    {
-        assert(data);
-
-        // копируем каллбек
-        auto fn_ptr = new std::function<void()>(std::forward<F>(fn));
-        // выделяем память под буфер
-
-        check_result("evbuffer_add_reference",
-            evbuffer_add_reference(output(), data, size, ref_clean_fn, fn_ptr));
-    }
 
     void write(buffer data)
     {

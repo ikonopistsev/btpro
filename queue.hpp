@@ -231,13 +231,13 @@ public:
 // ------
     void once(event_callback_fn fn, void *arg)
     {
-        once(-1, EV_TIMEOUT, timeval{0, 1}, fn, arg);
+        once(-1, EV_TIMEOUT, timeval{0, 0}, fn, arg);
     }
 
     template<class F>
     void once(F& fn)
     {
-        once(-1, EV_TIMEOUT, timeval{0, 1}, proxy<F>::call, &fn);
+        once(-1, EV_TIMEOUT, timeval{0, 0}, proxy<F>::call, &fn);
     }
 };
 

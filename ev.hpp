@@ -3,20 +3,20 @@
 #include "btpro/evcore.hpp"
 #include "btpro/socket.hpp"
 
-//#ifndef BTPRO_ACTIVATE
-//#define EV_ACTIVATE 0x1000
-//#define BTPRO_ACTIVATE EV_ACTIVATE
-//#endif // BTPRO_TIMEOUT_ACTIVATE
+#ifndef BTPRO_ACTIVATE
+#define EV_ACTIVATE 0x1000
+#define BTPRO_ACTIVATE EV_ACTIVATE
+#endif // BTPRO_TIMEOUT_ACTIVATE
 
-//#ifndef BTPRO_ON_FREE
-//#define EV_ON_FREE 0x2000
-//#define BTPRO_ON_FREE EV_ON_FREE
-//#endif // BTPRO_CALL_ON_FREE
+#ifndef BTPRO_ON_FREE
+#define EV_ON_FREE 0x2000
+#define BTPRO_ON_FREE EV_ON_FREE
+#endif // BTPRO_CALL_ON_FREE
 
-//#ifndef BTPRO_EV_REMOVE
-//#define EV_REMOVE 0x100000
-//#define BTPRO_EV_REMOVE EV_REMOVE
-//#endif // BTPRO_EV_END
+#ifndef BTPRO_EV_REMOVE
+#define EV_REMOVE 0x100000
+#define BTPRO_EV_REMOVE EV_REMOVE
+#endif // BTPRO_EV_END
 
 
 namespace btpro {

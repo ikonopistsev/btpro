@@ -189,11 +189,10 @@ public:
     }
 
     template<class F>
-    void once(evutil_socket_t fd, short ef, timeval tv,
-              const F& fun)
+    void once(evutil_socket_t fd, short ef, timeval tv, F fun)
     {
         ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::cref(fun));
+        auto fn = new function_t(std::forward<F>(fun));
         once(fd, ef, tv, proxy<F>::callfun, fn);
     }
 
@@ -207,10 +206,10 @@ public:
 
     template<class Rep, class Period, class F>
     void once(evutil_socket_t fd, short ef,
-        std::chrono::duration<Rep, Period> timeout, const F& fun)
+        std::chrono::duration<Rep, Period> timeout, F fun)
     {
         ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::cref(fun));
+        auto fn = new function_t(std::forward<F>(fun));
         once(fd, ef, make_timeval(timeout), proxy<F>::callfun, fn);
     }
 
@@ -234,10 +233,10 @@ public:
     }
 
     template<class F>
-    void once(short ef, timeval tv, const F& fun)
+    void once(short ef, timeval tv, F fun)
     {
         ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::cref(fun));
+        auto fn = new function_t(std::forward<F>(fun));
         once(-1, ef|EV_TIMEOUT, tv, proxy<function_t>::callfun, fn);
     }
 
@@ -250,11 +249,10 @@ public:
     }
 
     template<class Rep, class Period, class F>
-    void once(short ef, std::chrono::duration<Rep, Period> timeout,
-              const F& fun)
+    void once(short ef, std::chrono::duration<Rep, Period> timeout, F fun)
     {
         ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::cref(fun));
+        auto fn = new function_t(std::forward<F>(fun));
         once(-1, ef|EV_TIMEOUT, make_timeval(timeout),
              proxy<function_t>::callfun, fn);
     }
@@ -279,9 +277,9 @@ public:
     }
 
     template<class F>
-    void once(timeval tv, const F& fun)
+    void once(timeval tv, F fun)
     {
-        auto fn = new function_t(std::cref(fun));
+        auto fn = new function_t(std::forward<F>(fun));
         once(-1, EV_TIMEOUT, tv, proxy<function_t>::callfun, fn);
     }
 
@@ -293,9 +291,9 @@ public:
     }
 
     template<class Rep, class Period, class F>
-    void once(std::chrono::duration<Rep, Period> timeout, const F& fun)
+    void once(std::chrono::duration<Rep, Period> timeout, F fun)
     {
-        auto fn = new function_t(std::cref(fun));
+        auto fn = new function_t(std::forward<F>(fun));
         once(-1, EV_TIMEOUT, make_timeval(timeout),
              proxy<function_t>::callfun, fn);
     }
@@ -313,9 +311,9 @@ public:
     }
 
     template<class F>
-    void once(const F& fun)
+    void once(F fun)
     {
-        auto fn = new function_t(std::cref(fun));
+        auto fn = new function_t(std::forward<F>(fun));
         once(-1, EV_TIMEOUT, timeval{0, 0}, proxy<function_t>::callfun, fn);
     }
 };

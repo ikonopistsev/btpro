@@ -1,6 +1,6 @@
 #pragma once
 
-#include "btpro/queue.hpp"
+#include "btpro/dns.hpp"
 #include "btpro/buffer.hpp"
 #include "btpro/socket.hpp"
 
@@ -17,32 +17,55 @@ class bev
 public:
     typedef bufferevent* handle_t;
 
+    typedef std::unique_ptr<bufferevent,
+        decltype(&bufferevent_free)> value_type;
+
 private:
-    static inline void destroy(handle_t handle) noexcept
+
+    value_type handle_{ nullptr, bufferevent_free };
+
+    void check_result(const char *what, int result)
     {
-        assert(handle);
-        bufferevent_free(handle);
+        assert(what);
+        assert(what[0] != '\0');
+        if (result == code::fail)
+            throw std::runtime_error(what);
     }
 
-    static inline void leave(handle_t) noexcept
-    {   }
-
-    std::unique_ptr<bufferevent, decltype(&leave)>
-        handle_{ nullptr, leave };
-
-    buffer::handle_t output() const noexcept
+    buffer::handle_t output_handle() const noexcept
     {
         return bufferevent_get_output(handle());
     }
 
+    buffer::handle_t input_handle() const noexcept
+    {
+        return bufferevent_get_input(handle());
+    }
+
+public:
+    bev() = default;
+
+    bev(bev&&) = default;
+    bev& operator=(bev&&) = default;
+
+    explicit bev(value_type ptr) noexcept
+        : handle_(std::move(ptr))
+    {   }
+
+    void assign(handle_t handle) noexcept
+    {
+        assert(handle);
+        handle_.reset(handle);
+    }
+
     std::size_t output_length() const noexcept
     {
-        return evbuffer_get_length(output());
+        return evbuffer_get_length(output_handle());
     }
 
     std::size_t input_length() const noexcept
     {
-        return evbuffer_get_length(bufferevent_get_input(handle()));
+        return evbuffer_get_length(input_handle());
     }
 
     bool output_empty() const noexcept
@@ -55,47 +78,15 @@ private:
         return input_length() == 0;
     }
 
-    void check_result(const char *what, int result)
+    buffer input() const noexcept
     {
-        assert(what);
-        assert(what[0] != '\0');
-        if (result == code::fail)
-            throw std::runtime_error(what);
+        return buffer(input_handle());
     }
 
-    // create a new socket bufferevent over an existing socket
-    static inline handle_t create_bufferevent(queue& queue, int opt)
+    buffer output() const noexcept
     {
-        auto handle = bufferevent_socket_new(queue.handle(), -1, opt);
-        if (!handle)
-            throw std::runtime_error("bufferevent_socket_new");
-        return handle;
+        return buffer(output_handle());
     }
-
-    // create a new socket bufferevent over an existing socket
-    static inline handle_t create_bufferevent(queue& queue,
-        socket sock, int opt)
-    {
-        auto handle = bufferevent_socket_new(queue.handle(), sock.fd(), opt);
-        if (!handle)
-            throw std::runtime_error("bufferevent_socket_new");
-        return handle;
-    }
-
-public:
-    bev() = default;
-    bev(bev&&) = default;
-    bev& operator=(bev&&) = default;
-
-    // create a new socket bufferevent
-    explicit bev(queue& queue, int opt)
-        : handle_(create_bufferevent(queue, opt), &destroy)
-    {   }
-
-    // create a new socket bufferevent over an existing socket
-    explicit bev(queue& queue, be::socket sock, int opt)
-        : handle_(create_bufferevent(queue, sock, opt), &destroy)
-    {   }
 
     void connect(const sockaddr* sa, ev_socklen_t len)
     {
@@ -107,6 +98,28 @@ public:
     void connect(const ip::addr& addr)
     {
         connect(addr.sa(), addr.size());
+    }
+
+    void connect(dns& dns, int af, const std::string& hostname, int port)
+    {
+        check_result("bufferevent_socket_connect_hostname",
+            bufferevent_socket_connect_hostname(handle(), dns.handle(),
+                af, hostname.c_str(), port));
+    }
+
+    void connect(dns& dns, const std::string& hostname, int port)
+    {
+        connect(dns, AF_UNSPEC, hostname, port);
+    }
+
+    void connect4(dns& dns, const std::string& hostname, int port)
+    {
+        connect(dns, AF_INET, hostname, port);
+    }
+
+    void connect6(dns& dns, const std::string& hostname, int port)
+    {
+        connect(dns, AF_INET6, hostname, port);
     }
 
     handle_t handle() const noexcept
@@ -211,7 +224,7 @@ public:
         // выделяем память под буфер
 
         check_result("evbuffer_add_reference",
-            evbuffer_add_reference(output(), data, size,
+            evbuffer_add_reference(output_handle(), data, size,
                 ref_buffer<std::function<void()>>::clean_fn, fn_ptr));
     }
 
@@ -231,14 +244,13 @@ public:
         memcpy(ptr, data, size);
 
         check_result("evbuffer_add_reference",
-            evbuffer_add_reference(output(), ptr, size, 
+            evbuffer_add_reference(output_handle(), ptr, size,
                 ref_buffer<std::function<void()>>::clean_fn_all, fn_ptr));
     }
 
-
     void write(buffer data)
     {
-        check_result("bufferevent_write",
+        check_result("bufferevent_write_buffer",
             bufferevent_write_buffer(handle(), data.handle()));
     }
 
@@ -248,6 +260,12 @@ public:
     {
         check_result("bufferevent_base_set",
             bufferevent_base_set(queue.handle(), handle()));
+    }
+
+    void set(bufferevent_data_cb rdfn, bufferevent_data_cb wrfn,
+        bufferevent_event_cb evfn, void *arg) noexcept
+    {
+        bufferevent_setcb(handle(), rdfn, wrfn, evfn, arg);
     }
 };
 

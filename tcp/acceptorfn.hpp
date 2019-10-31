@@ -57,7 +57,6 @@ private:
     }
 
 public:
-    acceptorfn() = default;
     acceptorfn(acceptorfn&) = delete;
     acceptorfn& operator=(acceptorfn&) = delete;
 

@@ -66,6 +66,10 @@ public:
     buffer(buffer&&) = default;
     buffer& operator=(buffer&&) = default;
 
+    explicit buffer(handle_t handle)
+        : handle_(handle, leave)
+    {   }
+
     template<std::size_t N>
     explicit buffer(std::reference_wrapper<const char[N]> data_ref)
         : handle_(create_buffer(), &destroy)

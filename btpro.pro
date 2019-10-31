@@ -49,4 +49,10 @@ HEADERS += \
     config.hpp \
     evcore.hpp \
     evheap.hpp \
-    evstack.hpp
+    evstack.hpp \
+    dns.hpp \
+    tcp/bevfn.hpp \
+    ssl/ssl.hpp \
+    ssl/connector.hpp \
+    tcp/connector.hpp \
+    uri.hpp

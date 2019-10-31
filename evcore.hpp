@@ -20,8 +20,7 @@ private:
         static inline void evcb(evutil_socket_t fd, short ef, void* arg)
         {
             assert(arg);
-            auto fn = static_cast<F*>(arg);
-            (*fn)(fd, ef);
+            (*static_cast<F*>(arg))(fd, ef);
         }
     };
 

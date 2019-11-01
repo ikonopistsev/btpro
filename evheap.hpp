@@ -61,7 +61,7 @@ public:
         handle_ = other.handle();
     }
 
-    void free() noexcept
+    void deallocate() noexcept
     {
         if (handle_)
         {
@@ -72,7 +72,7 @@ public:
 
     void destroy() noexcept
     {
-        free();
+        deallocate();
         handle_ = nullptr;
     }
 

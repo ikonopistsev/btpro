@@ -51,7 +51,7 @@ public:
         create(queue.handle(), -1, ef, fn, arg);
     }
 
-    void free() noexcept
+    void deallocate() noexcept
     {
         if (!empty())
             event_del(&event_);
@@ -59,7 +59,7 @@ public:
 
     void destroy() noexcept
     {
-        free();
+        deallocate();
         event_ = empty_event();
     }
 

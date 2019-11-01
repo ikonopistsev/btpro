@@ -42,18 +42,17 @@ public:
     template<class T>
     struct proxy
     {
-        template<class F>
-        static void make_once(queue& queue, evutil_socket_t fd,
-            short ef, timeval tv, std::reference_wrapper<F> fn)
+        static inline void make_once(queue& queue, evutil_socket_t fd,
+            short ef, timeval tv, std::reference_wrapper<T> fn)
         {
             queue.once(fd, ef, tv, call, &fn.get());
         }
 
         template<class F>
-        static void make_once(queue& queue,
-            evutil_socket_t fd, short ef, timeval tv, F fun)
+        static inline void make_once(queue& queue,
+            evutil_socket_t fd, short ef, timeval tv, F&& f)
         {
-            queue.once(fd, ef, tv, callfun, new T(std::move(fun)));
+            queue.once(fd, ef, tv, callfun, new T(std::forward<F>(f)));
         }
 
     private:
@@ -64,7 +63,7 @@ public:
             (*static_cast<T*>(arg))(sock, ef);
         }
 
-        static inline void callfun(evutil_socket_t sock, short ef, void *arg)
+        static inline void callfun(evutil_socket_t sock, short ef, void* arg)
         {
             assert(arg);
             auto fn = static_cast<T*>(arg);

@@ -42,12 +42,28 @@ public:
     template<class T>
     struct proxy
     {
+        static inline void make_once(queue& queue, evutil_socket_t fd,
+            short ef, timeval tv, std::reference_wrapper<T> fn)
+        {
+            queue.once(fd, ef, tv, call, &fn.get());
+        }
+
+        template<class F>
+        static inline void make_once(queue& queue,
+            evutil_socket_t fd, short ef, timeval tv, F&& f)
+        {
+            queue.once(fd, ef, tv, callfun, new T(std::forward<F>(f)));
+        }
+
+    private:
+
         static inline void call(evutil_socket_t sock, short ef, void *arg)
         {
+            assert(arg);
             (*static_cast<T*>(arg))(sock, ef);
         }
 
-        static inline void callfun(evutil_socket_t sock, short ef, void *arg)
+        static inline void callfun(evutil_socket_t sock, short ef, void* arg)
         {
             assert(arg);
             auto fn = static_cast<T*>(arg);
@@ -185,32 +201,20 @@ public:
     void once(evutil_socket_t fd, short ef, timeval tv,
               std::reference_wrapper<F> fn)
     {
-        once(fd, ef, tv, proxy<F>::call, &fn.get());
+        proxy<F>::make_once(*this, fd, ef, tv, std::move(fn));
     }
 
     template<class F>
     void once(evutil_socket_t fd, short ef, timeval tv, F fun)
     {
-        ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::move(fun));
-        once(fd, ef, tv, proxy<F>::callfun, fn);
-    }
-
-    template<class Rep, class Period, class F>
-    void once(evutil_socket_t fd, short ef,
-        std::chrono::duration<Rep, Period> timeout,
-        std::reference_wrapper<F> fn)
-    {
-        once(fd, ef, make_timeval(timeout), proxy<F>::call, &fn.get());
+        proxy<function_t>::make_once(*this, fd, ef, tv, std::move(fun));
     }
 
     template<class Rep, class Period, class F>
     void once(evutil_socket_t fd, short ef,
         std::chrono::duration<Rep, Period> timeout, F fun)
     {
-        ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::move(fun));
-        once(fd, ef, make_timeval(timeout), proxy<F>::callfun, fn);
+        once(fd, ef, make_timeval(timeout), std::move(fun));
     }
 
 // ------
@@ -227,34 +231,15 @@ public:
     }
 
     template<class F>
-    void once(short ef, timeval tv, std::reference_wrapper<F> fn)
-    {
-        once(-1, ef|EV_TIMEOUT, tv, proxy<F>::call, &fn.get());
-    }
-
-    template<class F>
     void once(short ef, timeval tv, F fun)
     {
-        ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::move(fun));
-        once(-1, ef|EV_TIMEOUT, tv, proxy<function_t>::callfun, fn);
-    }
-
-    template<class Rep, class Period, class F>
-    void once(short ef, std::chrono::duration<Rep, Period> timeout,
-              std::reference_wrapper<F> fn)
-    {
-        once(-1, ef|EV_TIMEOUT, make_timeval(timeout),
-             proxy<F>::call, &fn.get());
+        once(-1, ef|EV_TIMEOUT, tv, std::move(fun));
     }
 
     template<class Rep, class Period, class F>
     void once(short ef, std::chrono::duration<Rep, Period> timeout, F fun)
     {
-        ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::move(fun));
-        once(-1, ef|EV_TIMEOUT, make_timeval(timeout),
-             proxy<function_t>::callfun, fn);
+        once(-1, ef|EV_TIMEOUT, make_timeval(timeout), std::move(fun));
     }
 
 // ------
@@ -271,31 +256,16 @@ public:
     }
 
     template<class F>
-    void once(timeval tv, std::reference_wrapper<F> fn)
-    {
-        once(-1, EV_TIMEOUT, tv, proxy<F>::call, &fn.get());
-    }
-
-    template<class F>
     void once(timeval tv, F fun)
     {
-        auto fn = new function_t(std::move(fun));
-        once(-1, EV_TIMEOUT, tv, proxy<function_t>::callfun, fn);
+        once(-1, EV_TIMEOUT, tv, std::move(fun));
     }
 
-    template<class Rep, class Period, class F>
-    void once(std::chrono::duration<Rep, Period> timeout,
-              std::reference_wrapper<F> fn)
-    {
-        once(-1, EV_TIMEOUT, make_timeval(timeout), proxy<F>::call, &fn.get());
-    }
 
     template<class Rep, class Period, class F>
     void once(std::chrono::duration<Rep, Period> timeout, F fun)
     {
-        auto fn = new function_t(std::move(fun));
-        once(-1, EV_TIMEOUT, make_timeval(timeout),
-             proxy<function_t>::callfun, fn);
+        once(-1, EV_TIMEOUT, make_timeval(timeout), std::move(fun));
     }
 
 // ------
@@ -305,16 +275,9 @@ public:
     }
 
     template<class F>
-    void once(std::reference_wrapper<F> fn)
-    {
-        once(-1, EV_TIMEOUT, timeval{0, 0}, proxy<F>::call, &fn.get());
-    }
-
-    template<class F>
     void once(F fun)
     {
-        auto fn = new function_t(std::move(fun));
-        once(-1, EV_TIMEOUT, timeval{0, 0}, proxy<function_t>::callfun, fn);
+        once(-1, EV_TIMEOUT, timeval{0, 0},  std::move(fun));
     }
 };
 

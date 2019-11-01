@@ -37,7 +37,7 @@ public:
 
     ~evcore() noexcept
     {
-        event_.free();
+        event_.deallocate();
     }
 
     void create(queue::handle_t queue, evutil_socket_t fd, event_flag_t ef,

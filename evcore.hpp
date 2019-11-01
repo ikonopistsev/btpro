@@ -96,7 +96,7 @@ public:
 
     void destroy() noexcept
     {
-        return event_.destroy();
+        event_.destroy();
     }
 
     // !!! это не выполнить на следующем цикле очереди

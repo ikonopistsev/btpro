@@ -42,6 +42,22 @@ public:
     template<class T>
     struct proxy
     {
+        template<class F>
+        static void make_once(queue& queue, evutil_socket_t fd,
+            short ef, timeval tv, std::reference_wrapper<F> fn)
+        {
+            queue.once(fd, ef, tv, call, &fn.get());
+        }
+
+        template<class F>
+        static void make_once(queue& queue,
+            evutil_socket_t fd, short ef, timeval tv, F fun)
+        {
+            queue.once(fd, ef, tv, callfun, new T(std::move(fun)));
+        }
+
+    private:
+
         static inline void call(evutil_socket_t sock, short ef, void *arg)
         {
             (*static_cast<T*>(arg))(sock, ef);
@@ -185,17 +201,13 @@ public:
     void once(evutil_socket_t fd, short ef, timeval tv,
               std::reference_wrapper<F> fn)
     {
-        once(fd, ef, tv, proxy<F>::call, &fn.get());
+        proxy<F>::make_once(*this, fd, ef, tv, std::move(fn));
     }
 
     template<class F>
     void once(evutil_socket_t fd, short ef, timeval tv, F fun)
     {
-        // remove persist bit
-        // handler will be deleted after callback
-        ef &= ~EV_PERSIST;
-        auto fn = new function_t(std::move(fun));
-        once(fd, ef, tv, proxy<F>::callfun, fn);
+        proxy<function_t>::make_once(*this, fd, ef, tv, std::move(fun));
     }
 
     template<class Rep, class Period, class F>

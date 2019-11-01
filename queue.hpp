@@ -60,6 +60,7 @@ public:
 
         static inline void call(evutil_socket_t sock, short ef, void *arg)
         {
+            assert(arg);
             (*static_cast<T*>(arg))(sock, ef);
         }
 

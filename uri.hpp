@@ -24,12 +24,12 @@ public:
 
     uri_data() = default;
 
-    this_type& self() noexcept
+    this_type& that() noexcept
     {
         return *this;
     }
 
-    const this_type& self() const noexcept
+    const this_type& that() const noexcept
     {
         return *this;
     }
@@ -49,12 +49,12 @@ private:
 public:
     data_ptr() = default;
 
-    value_type& self() noexcept
+    value_type& that() noexcept
     {
         return *handle_;
     }
 
-    const value_type& self() const noexcept
+    const value_type& that() const noexcept
     {
         return *handle_;
     }
@@ -82,45 +82,80 @@ private:
     string_type build(const string_type& p) const noexcept
     {
         string_type result;
+        auto h = host();
+        if (h.empty())
+            return  result;
 
         auto& s = scheme();
         if (!s.empty())
         {
             static const char sep[] = "://";
-            static const std::size_t sep_size = sizeof(sep);
-
-            result.append(s);
-            result.append(sep, sep_size);
+            result += s;
+            result += std::cref(sep);
         }
 
         auto& u = user();
         if (!u.empty())
         {
-            result.append(u);
+            result += u;
             if (!p.empty())
             {
-                result.append(':');
-                result.append(p);
+                result += ':';
+                result += p;
             }
-            result.append('@');
+            result += '@';
         }
 
-        auto h = host();
-        if (!h.empty())
+        result += h;
+
+        auto& n = port();
+        if (!n.empty())
         {
-
+            result += ':';
+            result += n;
         }
+
+        auto& l = path();
+        auto& q = query();
+        auto& f = fragment();
+        if (l.empty())
+        {
+            if (q.empty() && f.empty())
+                return result;
+
+            result += '/';
+        }
+        else
+        {
+            auto c = l.front();
+            if (!((c == '/') || (c == '\\')))
+                result += '/';
+        }
+
+        if (!q.empty())
+        {
+            result += '?';
+            result += q;
+        }
+
+        if (!f.empty())
+        {
+            result += '#';
+            result += f;
+        }
+
+        return result;
     }
 
 public:
-    value_type& data() noexcept
+    value_type& that() noexcept
     {
-        return data_.self();
+        return data_.that();
     }
 
-    const value_type& data() const noexcept
+    const value_type& that() const noexcept
     {
-        return data_.self();
+        return data_.that();
     }
 
     uri() = default;
@@ -133,8 +168,8 @@ public:
     template<class P>
     uri(const uri<P>& other)
     {
-        auto& l = data();
-        auto& r = other.data();
+        auto& l = that();
+        auto& r = other.that();
         assign(l.scheme_, r.scheme_);
         assign(l.user_, r.user_);
         assign(l.password_, r.password_);
@@ -148,8 +183,8 @@ public:
     template<class P>
     uri& operator=(const uri<P>& other)
     {
-        auto& l = data();
-        auto& r = other.data();
+        auto& l = that();
+        auto& r = other.that();
         assign(l.scheme_, r.scheme_);
         assign(l.user_, r.user_);
         assign(l.password_, r.password_);
@@ -164,142 +199,142 @@ public:
     void set_scheme(const char* value)
     {
         assert(value);
-        data().scheme_ = value;
+        that().scheme_ = value;
     }
 
     template<class String>
     void set_scheme(const String& scheme)
     {
-        assign(data().scheme_, scheme);
+        assign(that().scheme_, scheme);
     }
 
     void set_user(const char* value)
     {
         assert(value);
-        data().user_ = value;
+        that().user_ = value;
     }
 
     template<class String>
     void set_user(const String& user)
     {
-        assign(data().user_, user);
+        assign(that().user_, user);
     }
 
     void set_password(const char* value)
     {
         assert(value);
-        data().password_ = value;
+        that().password_ = value;
     }
 
     template<class String>
     void set_password(const String& password)
     {
-        assign(data().password_, password);
+        assign(that().password_, password);
     }
 
     void set_host(const char* value)
     {
         assert(value);
-        data().host_ = value;
+        that().host_ = value;
     }
 
     template<class String>
     void set_host(const String& host)
     {
-        assign(data().host_, host);
+        assign(that().host_, host);
     }
 
     void set_port(const char* value)
     {
         assert(value);
-        data().port_ = value;
+        that().port_ = value;
     }
 
     template<class String>
     void set_port(const String& port)
     {
-        assign(data().port_, port);
+        assign(that().port_, port);
     }
 
     void set_path(const char* value)
     {
         assert(value);
-        data().path_ = value;
+        that().path_ = value;
     }
 
     template<class String>
     void set_path(const String& path)
     {
-        assign(data().path_, path);
+        assign(that().path_, path);
     }
 
     void set_query(const char* value)
     {
         assert(value);
-        data().query_ = value;
+        that().query_ = value;
     }
 
     template<class String>
     void set_query(const String& query)
     {
-        assign(data().query_, query);
+        assign(that().query_, query);
     }
 
     void set_fragment(const char* value)
     {
         assert(value);
-        data().fragment_ = value;
+        that().fragment_ = value;
     }
 
     template<class String>
     void set_fragment(const String& fragment)
     {
-        assign(data().fragment_, fragment);
+        assign(that().fragment_, fragment);
     }
 
     const string_type& scheme() const noexcept
     {
-        return data().scheme_;
+        return that().scheme_;
     }
 
     const string_type& user() const noexcept
     {
-        return data().user_;
+        return that().user_;
     }
 
     const string_type& password() const noexcept
     {
-        return data().password_;
+        return that().password_;
     }
 
     const string_type& host() const noexcept
     {
-        return data().host_;
+        return that().host_;
     }
 
     const string_type& port() const noexcept
     {
-        return data().port_;
+        return that().port_;
     }
 
     int dport() const noexcept
     {
-        return std::atoi(port().data());
+        return std::atoi(port().that());
     }
 
     const string_type& path() const noexcept
     {
-        return data().path_;
+        return that().path_;
     }
 
     const string_type& query() const noexcept
     {
-        return data().query_;
+        return that().query_;
     }
 
     const string_type& fragment() const noexcept
     {
-        return data().fragment_;
+        return that().fragment_;
     }
 
     string_type str() const

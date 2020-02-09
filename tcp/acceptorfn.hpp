@@ -13,7 +13,6 @@ public:
     typedef void (T::*callback_fn)(socket, ip::addr);
     typedef void (T::*on_throw_t)(std::exception_ptr);
     typedef acceptorfn<T> this_type;
-    typedef listener::handle_t handle_t;
 
 private:
     T& self_;
@@ -24,7 +23,7 @@ private:
     template<class A>
     struct proxy
     {
-        static inline void evcb(handle_t, evutil_socket_t sock,
+        static inline void evcb(connlistener_handle_t, evutil_socket_t sock,
             sockaddr *sa, int salen, void *self) noexcept
         {
             assert(self);
@@ -67,28 +66,32 @@ public:
         assert(fn);
     }
 
-    acceptorfn& listen(be::queue& queue,
+    acceptorfn& listen(queue_handle_t queue,
         unsigned int flags, const ip::addr& sa, int backlog)
     {
+        assert(queue);
         listener_.listen(queue, flags, backlog,
             sa, proxy<this_type>::evcb, this);
 
         return *this;
     }
 
-    acceptorfn& listen(be::queue& queue,
+    acceptorfn& listen(queue_handle_t queue,
         unsigned int flags, const ip::addr& sa)
     {
+        assert(queue);
         return listen(queue, flags, sa, -1);
     }
 
-    acceptorfn& listen(be::queue& queue, const ip::addr& sa)
+    acceptorfn& listen(queue_handle_t queue, const ip::addr& sa)
     {
+        assert(queue);
         return listen(queue, 0, sa, -1);
     }
 
     acceptorfn& set(callback_fn fn) const noexcept
     {
+        assert(fn);
         fn_ = fn;
     }
 

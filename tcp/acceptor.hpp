@@ -20,7 +20,7 @@ private:
     template<class T>
     struct proxy
     {
-        static void evcb(listener::handle_t, evutil_socket_t sock,
+        static void evcb(connlistener_handle_t, evutil_socket_t sock,
             sockaddr *sa, int salen, void *obj) noexcept
         {
             assert(obj);
@@ -53,16 +53,18 @@ private:
     }
 
 public:
-    acceptor(be::queue& queue, unsigned int flags,
+    acceptor(queue_handle_t queue, unsigned int flags,
         const ip::addr& sa, int backlog, handler_t handler)
         : handler_(std::move(handler))
     {
+        assert(queue && handler_);
         listener_.listen(queue, flags,
             backlog, sa, proxy<acceptor>::evcb, this);
     }
 
     acceptor& set(handler_t handler)
     {
+        assert(handler);
         handler_ = std::move(handler);
         return *this;
     }

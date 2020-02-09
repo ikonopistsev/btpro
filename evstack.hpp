@@ -1,6 +1,5 @@
 #pragma once
 
-#include "btpro/queue.hpp"
 #include "btpro/socket.hpp"
 #include "event2/event_struct.h"
 
@@ -29,7 +28,7 @@ public:
     evstack() = default;
 
     // создание объекта
-    void create(queue::handle_t queue, evutil_socket_t fd,
+    void create(queue_handle_t queue, evutil_socket_t fd,
         event_flag_t ef, event_callback_fn fn, void *arg)
     {
         // без метода не получится
@@ -40,15 +39,16 @@ public:
             throw std::runtime_error("event_assign");
     }
 
-    void create(queue& queue, be::socket sock,
+    void create(queue_handle_t queue, be::socket sock,
         event_flag_t ef, event_callback_fn fn, void *arg)
     {
-        create(queue.handle(), sock.fd(), ef, fn, arg);
+        create(queue, sock.fd(), ef, fn, arg);
     }
 
-    void create(queue& queue, event_flag_t ef, event_callback_fn fn, void *arg)
+    void create(queue_handle_t queue, event_flag_t ef,
+        event_callback_fn fn, void *arg)
     {
-        create(queue.handle(), -1, ef, fn, arg);
+        create(queue, -1, ef, fn, arg);
     }
 
     void deallocate() noexcept

@@ -19,8 +19,8 @@ public:
 
 private:
     openssl& ssl_;
-    queue& queue_;
-    dns& dns_;
+    queue_handle_t queue_{};
+    dns_handle_t dns_{};
 
     handle_t create_bufferevent(btpro::socket sock)
     {
@@ -28,7 +28,7 @@ private:
         if (!ssl)
             throw std::runtime_error("SSL_new");
 
-        auto handle = bufferevent_openssl_socket_new(queue_.handle(),
+        auto handle = bufferevent_openssl_socket_new(queue_,
             sock.fd(), ssl, BEV_SSL_STATE, BEV_OPT_DEF);
 
         // если не создали сокет убиваем ssl
@@ -39,12 +39,12 @@ private:
     }
 
 public:
-    connector(openssl& ssl, queue& queue)
+    connector(openssl& ssl, queue_handle_t queue)
         : ssl_(ssl)
         , queue_(queue)
     {   }
 
-    connector(openssl& ssl, queue& queue, dns& dns)
+    connector(openssl& ssl, queue_handle_t queue, dns_handle_t dns)
         : ssl_(ssl)
         , queue_(queue)
         , dns_(dns)
@@ -56,7 +56,7 @@ public:
         if (!handle)
             throw std::runtime_error("bufferevent_socket_new");
 
-        return tcp::bev(tcp::bev::value_type(handle, bufferevent_free));
+        return tcp::bev(handle);
     }
 
     void connect(tcp::bev& bev, const std::string& hostname, int port)

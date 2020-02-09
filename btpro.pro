@@ -2,7 +2,7 @@ TEMPLATE = lib
 
 CONFIG -= qt
 CONFIG -= app_bundle
-CONFIG += staticlib c++14 warn_on
+CONFIG += staticlib c++17 warn_on
 
 TARGET = btpro
 

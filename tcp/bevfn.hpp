@@ -74,20 +74,9 @@ public:
     bevfn(bevfn&) = delete;
     bevfn& operator=(bevfn&) = delete;
 
-    explicit bevfn(T& self, queue& queue, int opt, on_event_t fn)
+    bevfn(T& self, bufferevent_handle_t hbev, on_event_t fn)
         : self_(self)
-        , bev_(queue, opt)
-        , event_fn_(fn)
-    {
-        assert(fn);
-        bev_.set(proxy<this_type>::send, proxy<this_type>::recv,
-                 proxy<this_type>::evcb, this);
-    }
-
-    explicit bevfn(T& self, queue& queue,
-        be::socket sock, int opt, on_event_t fn)
-        : self_(self)
-        , bev_(queue, sock, opt)
+        , bev_(hbev)
         , event_fn_(fn)
     {
         assert(fn);

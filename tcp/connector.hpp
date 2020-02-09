@@ -7,7 +7,7 @@ namespace btpro {
 namespace tcp {
 
 template<std::size_t BEV_OPT_DEF = BEV_OPT_CLOSE_ON_FREE>
-class connector
+class bevconn
 {
 public:
     typedef bev::handle_t handle_t;

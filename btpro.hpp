@@ -21,6 +21,7 @@ namespace btpro {
 
 typedef short event_flag_t;
 typedef event* event_handle_t;
+typedef event_base* queue_handle_t;
 
 template<class Rep, class Period>
 static timeval make_timeval(std::chrono::duration<Rep, Period> timeout) noexcept
@@ -41,6 +42,18 @@ static inline void startup(unsigned char h = 2, unsigned char l = 2)
 {
     static const net::launch launch(h, l);
 }
+
+struct tag_ref
+{
+    constexpr static bool is_ref = true;
+    constexpr static bool is_obj = false;
+};
+
+struct tag_obj
+{
+    constexpr static bool is_ref = false;
+    constexpr static bool is_obj = true;
+};
 
 } // namespace btpro
 

@@ -5,94 +5,132 @@
 #include "btpro/socket.hpp"
 
 #include "event2/bufferevent.h"
-//#include "event2/bufferevent_struct.h"
 
 #include <functional>
 
 namespace btpro {
 namespace tcp {
 
+typedef bufferevent* bufferevent_handle_t;
+
 class bev
 {
 public:
-    typedef bufferevent* handle_t;
-
-    typedef std::unique_ptr<bufferevent,
-        decltype(&bufferevent_free)> value_type;
+    typedef bufferevent_handle_t handle_t;
 
 private:
 
-    value_type handle_{ nullptr, bufferevent_free };
+    handle_t hbev_{ nullptr };
+
+    handle_t assert_handle() const noexcept
+    {
+        auto hbev = handle();
+        assert(hbev);
+        return hbev;
+    }
 
     void check_result(const char *what, int result)
     {
-        assert(what);
-        assert(what[0] != '\0');
+        assert(what && (what[0] != '\0'));
         if (result == code::fail)
             throw std::runtime_error(what);
     }
 
-    buffer::handle_t output_handle() const noexcept
+    buffer_handle_t output_handle() const noexcept
     {
-        return bufferevent_get_output(handle());
+        return bufferevent_get_output(assert_handle());
     }
 
-    buffer::handle_t input_handle() const noexcept
+    buffer_handle_t input_handle() const noexcept
     {
-        return bufferevent_get_input(handle());
+        return bufferevent_get_input(assert_handle());
     }
 
 public:
-    bev() = default;
+    bev() = delete;
+    bev(const bev&) = delete;
+    bev& operator=(const bev&) = delete;
 
-    bev(bev&&) = default;
-    bev& operator=(bev&&) = default;
-
-    explicit bev(value_type ptr) noexcept
-        : handle_(std::move(ptr))
-    {   }
-
-    void assign(handle_t handle) noexcept
+    bev(handle_t hbev) noexcept
+        : hbev_(hbev)
     {
-        assert(handle);
-        handle_.reset(handle);
+        assert(hbev);
     }
 
-    std::size_t output_length() const noexcept
+    void create(queue_handle_t queue,
+        be::socket sock, int opt = BEV_OPT_CLOSE_ON_FREE)
     {
-        return evbuffer_get_length(output_handle());
+        assert(queue);
+        auto hbev = bufferevent_socket_new(queue, sock.fd(), opt);
+        check_result("bufferevent_socket_new",
+            hbev != nullptr ? code::sucsess : code::fail);
+        hbev_ = hbev;
     }
 
-    std::size_t input_length() const noexcept
+    void create(queue_handle_t queue, int opt = BEV_OPT_CLOSE_ON_FREE)
     {
-        return evbuffer_get_length(input_handle());
+        create(queue, be::socket(), opt);
     }
 
-    bool output_empty() const noexcept
+    void destroy() noexcept
     {
-        return output_length() == 0;
+        auto hbev = handle();
+        if (nullptr != hbev)
+        {
+            bufferevent_free(hbev);
+            hbev_ = nullptr;
+        }
     }
 
-    bool input_empty() const noexcept
+    ~bev() noexcept
     {
-        return input_length() == 0;
+        auto hbev = handle();
+        if (nullptr != hbev)
+            bufferevent_free(hbev);
     }
 
-    buffer input() const noexcept
+    bev(bev&& other) noexcept
     {
-        return buffer(input_handle());
+        std::swap(hbev_, other.hbev_);
     }
 
-    buffer output() const noexcept
+    bev& operator=(bev&& other) noexcept
     {
-        return buffer(output_handle());
+        std::swap(hbev_, other.hbev_);
+        return *this;
+    }
+
+    buffer_ref input() const noexcept
+    {
+        return input_handle();
+    }
+
+    buffer_ref output() const noexcept
+    {
+        return output_handle();
+    }
+
+    // хэндл очереди
+    queue_handle_t queue_handle() const noexcept
+    {
+        return bufferevent_get_base(assert_handle());
+    }
+
+    operator queue_handle_t() const noexcept
+    {
+        return queue_handle();
+    }
+
+    int get_dns_error() const noexcept
+    {
+        return bufferevent_socket_get_dns_error(assert_handle());
     }
 
     void connect(const sockaddr* sa, ev_socklen_t len)
     {
         assert(sa);
         check_result("bufferevent_socket_connect",
-            bufferevent_socket_connect(handle(), sa, static_cast<int>(len)));
+            bufferevent_socket_connect(assert_handle(), sa, static_cast<int>(len)));
     }
 
     void connect(const ip::addr& addr)
@@ -100,76 +138,97 @@ public:
         connect(addr.sa(), addr.size());
     }
 
-    void connect(dns& dns, int af, const std::string& hostname, int port)
+    void connect(dns_handle_t dns, int af, const std::string& hostname, int port)
     {
+        assert(dns);
         check_result("bufferevent_socket_connect_hostname",
-            bufferevent_socket_connect_hostname(handle(), dns.handle(),
+            bufferevent_socket_connect_hostname(assert_handle(), dns,
                 af, hostname.c_str(), port));
     }
 
-    void connect(dns& dns, const std::string& hostname, int port)
+    void connect(dns_handle_t dns, const std::string& hostname, int port)
     {
         connect(dns, AF_UNSPEC, hostname, port);
     }
 
-    void connect4(dns& dns, const std::string& hostname, int port)
+    void connect4(dns_handle_t dns, const std::string& hostname, int port)
     {
         connect(dns, AF_INET, hostname, port);
     }
 
-    void connect6(dns& dns, const std::string& hostname, int port)
+    void connect6(dns_handle_t dns, const std::string& hostname, int port)
     {
         connect(dns, AF_INET6, hostname, port);
     }
 
     handle_t handle() const noexcept
     {
-        auto result = handle_.get();
-        assert(result);
-        return result;
+        return hbev_;
+    }
+
+    operator handle_t() const noexcept
+    {
+        return  handle();
+    }
+
+    evutil_socket_t fd() const noexcept
+    {
+        return bufferevent_getfd(assert_handle());
     }
 
     be::socket socket() const noexcept
     {
-        return be::socket(bufferevent_getfd(handle()));
+        return be::socket(fd());
+    }
+
+    operator be::socket() const noexcept
+    {
+        return socket();
     }
 
     void enable(short event)
     {
         check_result("bufferevent_enable",
-            bufferevent_enable(handle(), event));
+            bufferevent_enable(assert_handle(), event));
     }
 
     void disable(short event)
     {
         check_result("bufferevent_disable",
-            bufferevent_disable(handle(), event));
+            bufferevent_disable(assert_handle(), event));
     }
 
     ev_ssize_t get_max_to_read() const noexcept
     {
-        return bufferevent_get_max_to_read(handle());
+        return bufferevent_get_max_to_read(assert_handle());
     }
 
     ev_ssize_t get_max_to_write() const noexcept
     {
-        return bufferevent_get_max_to_write(handle());
+        return bufferevent_get_max_to_write(assert_handle());
     }
 
     void lock() const noexcept
     {
-        bufferevent_lock(handle());
+        bufferevent_lock(assert_handle());
     }
 
     void unlock() const noexcept
     {
-        bufferevent_unlock(handle());
+        bufferevent_unlock(assert_handle());
+    }
+
+    template<typename T>
+    void sync(T&& func)
+    {
+        std::lock_guard<bev> l(*this);
+        func(*this);
     }
 
     void write(const void *data, std::size_t size)
     {
         check_result("bufferevent_write",
-            bufferevent_write(handle(), data, size));
+            bufferevent_write(assert_handle(), data, size));
     }
 
 private:
@@ -220,7 +279,7 @@ public:
         assert(data);
 
         // копируем каллбек
-        auto fn_ptr = new std::function<void()>(std::forward<F>(fn));
+        auto fn_ptr = new std::function<void()>(std::move(fn));
         // выделяем память под буфер
 
         check_result("evbuffer_add_reference",
@@ -234,10 +293,10 @@ public:
         assert(data);
 
         // копируем каллбек
-        auto fn_ptr = new std::function<void()>(std::forward<F>(fn));
+        auto fn_ptr = new std::function<void()>(std::move(fn));
         // выделяем память под буфер
         auto ptr = malloc(size);
-        check_result("write mem allock",
+        check_result("write malloc",
             ptr != nullptr ? code::sucsess : code::fail);
 
         // копируем память
@@ -248,24 +307,45 @@ public:
                 ref_buffer<std::function<void()>>::clean_fn_all, fn_ptr));
     }
 
-    void write(buffer data)
+    void write(buffer_handle_t hbuf)
     {
+        assert(hbuf);
         check_result("bufferevent_write_buffer",
-            bufferevent_write_buffer(handle(), data.handle()));
+            bufferevent_write_buffer(assert_handle(), hbuf));
+    }
+
+    buffer read()
+    {
+        buffer result;
+        check_result("bufferevent_read_buffer",
+            bufferevent_read_buffer(assert_handle(), result));
+        return result;
     }
 
     // assign a bufferevent to a specific event_base.
     // NOTE that only socket bufferevents support this function.
-    void set(queue& queue)
+    void set(queue_handle_t queue)
     {
+        assert(queue);
         check_result("bufferevent_base_set",
-            bufferevent_base_set(queue.handle(), handle()));
+            bufferevent_base_set(queue, assert_handle()));
+    }
+
+    void set(evutil_socket_t fd)
+    {
+        check_result("bufferevent_setfd",
+            bufferevent_setfd(assert_handle(), fd));
+    }
+
+    void set(be::socket sock)
+    {
+        set(sock.fd());
     }
 
     void set(bufferevent_data_cb rdfn, bufferevent_data_cb wrfn,
         bufferevent_event_cb evfn, void *arg) noexcept
     {
-        bufferevent_setcb(handle(), rdfn, wrfn, evfn, arg);
+        bufferevent_setcb(assert_handle(), rdfn, wrfn, evfn, arg);
     }
 };
 

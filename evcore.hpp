@@ -1,12 +1,16 @@
 #pragma once
 
-#include "btpro/queue.hpp"
-#include "btpro/socket.hpp"
+#include "btpro/evheap.hpp"
+#include "btpro/evstack.hpp"
 
 namespace btpro {
 
-// класс обертка над интерфейсом event
-// без дополнительной логики EV_ON_FREE EV_ACTIVATE и EV_REMOVE
+template<class T>
+class evcore;
+
+typedef evcore<evheap> evh;
+typedef evcore<evstack> evs;
+
 template<class T>
 class evcore
 {
@@ -40,25 +44,19 @@ public:
         event_.deallocate();
     }
 
-    void create(queue::handle_t queue, evutil_socket_t fd, event_flag_t ef,
+    void create(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef,
         event_callback_fn fn, void *arg)
     {
         event_.create(queue, fd, ef, fn, arg);
     }
 
-    void create(queue& queue, evutil_socket_t fd, event_flag_t ef,
-        event_callback_fn fn, void *arg)
-    {
-        event_.create(queue.handle(), fd, ef, fn, arg);
-    }
-
-    void create(queue& queue, be::socket sock, event_flag_t ef,
+    void create(queue_handle_t queue, be::socket sock, event_flag_t ef,
         event_callback_fn fn, void *arg)
     {
         event_.create(queue, sock, ef, fn, arg);
     }
 
-    void create(queue& queue, event_flag_t ef, event_callback_fn fn, void *arg)
+    void create(queue_handle_t queue, event_flag_t ef, event_callback_fn fn, void *arg)
     {
         event_.create(queue, ef, fn, arg);
     }
@@ -66,20 +64,20 @@ public:
     // конструктор для лямбды
     // можно использовать с сигналами
     template<class F>
-    void create(queue& queue, evutil_socket_t fd, event_flag_t ef, F& fn)
+    void create(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef, F& fn)
     {
-        event_.create(queue.handle(), fd, ef, proxy<F>::evcb, &fn);
+        event_.create(queue, fd, ef, proxy<F>::evcb, &fn);
     }
 
     template<class F>
-    void create(queue& queue, be::socket sock, event_flag_t ef, F& fn)
+    void create(queue_handle_t queue, be::socket sock, event_flag_t ef, F& fn)
     {
         event_.create(queue, sock, ef, proxy<F>::evcb, &fn);
     }
 
     // конструктор для лямбды
     template<class F>
-    void create(queue& queue, event_flag_t ef, F& fn)
+    void create(queue_handle_t queue, event_flag_t ef, F& fn)
     {
         event_.create(queue, ef, proxy<F>::evcb, &fn);
     }
@@ -92,6 +90,11 @@ public:
     event_handle_t handle() const noexcept
     {
         return event_.handle();
+    }
+
+    operator event_handle_t() const noexcept
+    {
+        return handle();
     }
 
     void destroy() noexcept
@@ -179,9 +182,14 @@ public:
     }
 
     // хэндл очереди
-    queue::handle_t base_handle() const noexcept
+    queue_handle_t queue_handle() const noexcept
     {
         return event_get_base(assert_handle());
+    }
+
+    operator queue_handle_t() const noexcept
+    {
+        return queue_handle();
     }
 
     event_callback_fn callback() const noexcept

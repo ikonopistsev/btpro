@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ip">
+      <UniqueIdentifier>{57d9d776-4ec5-4e77-b6cf-f9d430dde3c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ipv4">
+      <UniqueIdentifier>{39fda868-9bae-4ab5-9f82-4c00a57bef7f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ipv6">
+      <UniqueIdentifier>{42b90d81-1b4b-4f36-805f-0805f070b49d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tcp">
+      <UniqueIdentifier>{41cd6384-ca37-43de-868a-a7a34dd153e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="wsa">
+      <UniqueIdentifier>{e5917e4f-5493-4af7-b618-178aacb60d1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="win">
+      <UniqueIdentifier>{9a1267c9-2ad3-47cf-bb0a-c1607ae8ab5c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ip\addr.hpp">
+      <Filter>ip</Filter>
+    </ClInclude>
+    <ClInclude Include="ipv4\addr.hpp">
+      <Filter>ipv4</Filter>
+    </ClInclude>
+    <ClInclude Include="ipv4\multicast_group.hpp">
+      <Filter>ipv4</Filter>
+    </ClInclude>
+    <ClInclude Include="ipv4\multicast_source_group.hpp">
+      <Filter>ipv4</Filter>
+    </ClInclude>
+    <ClInclude Include="ipv6\addr.hpp">
+      <Filter>ipv6</Filter>
+    </ClInclude>
+    <ClInclude Include="win\error_category.hpp">
+      <Filter>win</Filter>
+    </ClInclude>
+    <ClInclude Include="win\error_code.hpp">
+      <Filter>win</Filter>
+    </ClInclude>
+    <ClInclude Include="win\win.hpp">
+      <Filter>win</Filter>
+    </ClInclude>
+    <ClInclude Include="wsa\error_code.hpp">
+      <Filter>wsa</Filter>
+    </ClInclude>
+    <ClInclude Include="wsa\wsa.hpp">
+      <Filter>wsa</Filter>
+    </ClInclude>
+    <ClInclude Include="tcp\acceptor.hpp">
+      <Filter>tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="tcp\acceptorfn.hpp">
+      <Filter>tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="tcp\bev.hpp">
+      <Filter>tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="tcp\listener.hpp">
+      <Filter>tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="tcp\tcp.hpp">
+      <Filter>tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="btpro.hpp" />
+    <ClInclude Include="buffer.hpp" />
+    <ClInclude Include="config.hpp" />
+    <ClInclude Include="ev.hpp" />
+    <ClInclude Include="evcore.hpp" />
+    <ClInclude Include="evheap.hpp" />
+    <ClInclude Include="evstack.hpp" />
+    <ClInclude Include="queue.hpp" />
+    <ClInclude Include="sock_addr.hpp" />
+    <ClInclude Include="sock_opt.hpp" />
+    <ClInclude Include="socket.hpp" />
+    <ClInclude Include="thread.hpp" />
+  </ItemGroup>
+</Project>

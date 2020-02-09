@@ -1,55 +1,164 @@
 #pragma once
 
 #include "btpro/config.hpp"
+#include <functional>
+#include <type_traits>
 
 namespace btpro {
 
-class queue
+typedef void (*queue_callback_fn)(short, evutil_socket_t);
+typedef std::function<void(short, evutil_socket_t)> queue_fn;
+
+namespace detail {
+
+template<class R>
+struct queue_destroy;
+
+template<>
+struct queue_destroy<tag_ref>
+{
+    constexpr static inline void destroy_handle(queue_handle_t) noexcept
+    {   }
+};
+
+template<>
+struct queue_destroy<tag_obj>
+{
+    static inline void destroy_handle(queue_handle_t hqueue) noexcept
+    {
+        if (nullptr != hqueue)
+            event_base_free(hqueue);
+    }
+};
+
+} // detail
+
+template<class R>
+class basic_queue;
+
+typedef basic_queue<tag_ref> queue_ref;
+typedef basic_queue<tag_obj> queue;
+
+template<class R>
+class basic_queue
 {
 public:
-    typedef event_base* handle_t;
-    typedef void (*callback_fn)(evutil_socket_t, short);
-    typedef std::function<void(evutil_socket_t, short)> function_t;
+    typedef queue_handle_t handle_t;
+    constexpr static bool is_ref = R::is_ref;
 
 private:
-    static inline handle_t create()
-    {
-        auto res = event_base_new();
-        if (!res)
-            throw std::runtime_error("event_base_new");
-        return res;
-    }
-
-    static inline handle_t create(const config& cfg)
-    {
-        auto res = event_base_new_with_config(cfg.handle());
-        if (!res)
-            throw std::runtime_error("event_base_new_with_config");
-        return res;
-    }
+    handle_t hqueue_{ nullptr };
 
     handle_t assert_handle() const noexcept
     {
-        auto res = handle_.get();
-        assert(res);
-        return res;
+        auto hqueue = handle();
+        assert(hqueue);
+        return hqueue;
     }
 
-    std::unique_ptr<event_base, decltype(&event_base_free)>
-        handle_{create(), event_base_free};
-
 public:
+    basic_queue() = default;
+
+    ~basic_queue() noexcept
+    {
+        detail::queue_destroy<R>::destroy_handle(hqueue_);
+    }
+
+    basic_queue(basic_queue&& that) noexcept
+    {
+        std::swap(hqueue_, that.hqueue_);
+    }
+
+    basic_queue& operator=(basic_queue&& that) noexcept
+    {
+        std::swap(hqueue_, that.hqueue_);
+        return *this;
+    }
+
+    basic_queue(handle_t hqueue) noexcept
+        : hqueue_(hqueue)
+    {
+        assert(hqueue);
+        static_assert(is_ref, "queue_ref only");
+    }
+
+    queue_ref& operator=(handle_t hqueue) noexcept
+    {
+        assert(hqueue);
+        hqueue_ = hqueue;
+        return *this;
+    }
+
+    template<class T>
+    basic_queue(const basic_queue<T>& other) noexcept
+        : basic_queue(other.handle())
+    {   }
+
+    template<class T>
+    queue_ref& operator=(const basic_queue<T>& other) noexcept
+    {
+        *this = other.hqueue_;
+        return *this;
+    }
+
+    handle_t handle() const noexcept
+    {
+        return hqueue_;
+    }
+
+    operator handle_t() const noexcept
+    {
+        return handle();
+    }
+
+    bool empty() const noexcept
+    {
+        return nullptr == handle();
+    }
+
+    void create()
+    {
+        static_assert(!is_ref, "no queue_ref");
+
+        assert(empty());
+
+        auto hqueue = event_base_new();
+        if (!hqueue)
+            throw std::runtime_error("event_base_new");
+
+        hqueue_ = hqueue;
+    }
+
+    void create(const config& conf)
+    {
+        static_assert(!is_ref, "no queue_ref");
+
+        assert(empty());
+
+        auto hqueue = event_base_new_with_config(conf);
+        if (!hqueue)
+            throw std::runtime_error("event_base_new");
+
+        hqueue_ = hqueue;
+    }
+
+    void destroy() noexcept
+    {
+        detail::queue_destroy<R>::destroy_handle(hqueue_);
+        hqueue_ = nullptr;
+    }
+
     template<class T>
     struct proxy
     {
-        static inline void make_once(queue& queue, evutil_socket_t fd,
-            short ef, timeval tv, std::reference_wrapper<T> fn)
+        static inline void make_once(basic_queue& queue,
+        evutil_socket_t fd, short ef, timeval tv, std::reference_wrapper<T> fn)
         {
             queue.once(fd, ef, tv, call, &fn.get());
         }
 
         template<class F>
-        static inline void make_once(queue& queue,
+        static inline void make_once(basic_queue& queue,
             evutil_socket_t fd, short ef, timeval tv, F&& f)
         {
             queue.once(fd, ef, tv, callfun, new T(std::forward<F>(f)));
@@ -78,22 +187,6 @@ public:
             delete fn;
         }
     };
-
-    queue(const queue&) = delete;
-    queue& operator=(const queue&) = delete;
-
-    queue() = default;
-    queue(queue&&) = default;
-    queue& operator=(queue&&) = default;
-
-    explicit queue(const config& cfg)
-        : handle_{create(cfg), event_base_free}
-    {   }
-
-    handle_t handle() const noexcept
-    {
-        return handle_.get();
-    }
 
     std::string method() const noexcept
     {
@@ -180,6 +273,11 @@ public:
         return tv;
     }
 
+    operator timeval() const noexcept
+    {
+        return gettimeofday_cached();
+    }
+
 // ------
     void once(evutil_socket_t fd, short ef, timeval tv,
         event_callback_fn fn, void *arg)
@@ -207,7 +305,7 @@ public:
     template<class F>
     void once(evutil_socket_t fd, short ef, timeval tv, F fun)
     {
-        proxy<function_t>::make_once(*this, fd, ef, tv, std::move(fun));
+        proxy<queue_fn>::make_once(*this, fd, ef, tv, std::move(fun));
     }
 
     template<class Rep, class Period, class F>

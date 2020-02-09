@@ -458,6 +458,26 @@ public:
         out[result] = '\0';
         return result;
     }
+
+    int read(evutil_socket_t fd, int howmuch)
+    {
+        return evbuffer_read(assert_handle(), fd, howmuch);
+    }
+
+    int read(socket sock, int howmuch)
+    {
+        return read(sock.fd(), howmuch);
+    }
+
+    int write(evutil_socket_t fd)
+    {
+        return evbuffer_write(assert_handle(), fd);
+    }
+
+    int write(socket sock)
+    {
+        return write(sock.fd());
+    }
 };
 
 } // namespace btpro

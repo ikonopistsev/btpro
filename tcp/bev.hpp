@@ -3,6 +3,7 @@
 #include "btpro/dns.hpp"
 #include "btpro/buffer.hpp"
 #include "btpro/socket.hpp"
+#include "btpro/tcp/tcp.hpp"
 
 #include "event2/bufferevent.h"
 
@@ -12,6 +13,9 @@ namespace btpro {
 namespace tcp {
 
 typedef bufferevent* bufferevent_handle_t;
+
+template<class T>
+class bevfn;
 
 class bev
 {
@@ -46,8 +50,15 @@ private:
         return bufferevent_get_input(assert_handle());
     }
 
+    // хэндл очереди
+    queue_handle_t queue_handle() const noexcept
+    {
+        return bufferevent_get_base(assert_handle());
+    }
+
 public:
-    bev() = delete;
+    bev() = default;
+
     bev(const bev&) = delete;
     bev& operator=(const bev&) = delete;
 
@@ -102,23 +113,17 @@ public:
 
     buffer_ref input() const noexcept
     {
-        return input_handle();
+        return buffer_ref(input_handle());
     }
 
     buffer_ref output() const noexcept
     {
-        return output_handle();
+        return buffer_ref(output_handle());
     }
 
-    // хэндл очереди
-    queue_handle_t queue_handle() const noexcept
+    queue_ref queue() const noexcept
     {
-        return bufferevent_get_base(assert_handle());
-    }
-
-    operator queue_handle_t() const noexcept
-    {
-        return queue_handle();
+        return queue_ref(queue_handle());
     }
 
     int get_dns_error() const noexcept
@@ -307,11 +312,11 @@ public:
                 ref_buffer<std::function<void()>>::clean_fn_all, fn_ptr));
     }
 
-    void write(buffer_handle_t hbuf)
+    template<class Ref>
+    void write(basic_buffer<Ref> buf)
     {
-        assert(hbuf);
         check_result("bufferevent_write_buffer",
-            bufferevent_write_buffer(assert_handle(), hbuf));
+            bufferevent_write_buffer(assert_handle(), buf));
     }
 
     buffer read()
@@ -346,6 +351,12 @@ public:
         bufferevent_event_cb evfn, void *arg) noexcept
     {
         bufferevent_setcb(assert_handle(), rdfn, wrfn, evfn, arg);
+    }
+
+    template<class T>
+    void set(bevfn<T>& val)
+    {
+        val.apply(*this);
     }
 };
 

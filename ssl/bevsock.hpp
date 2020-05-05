@@ -11,7 +11,7 @@ namespace btpro {
 namespace ssl {
 
 template<bufferevent_ssl_state BEV_SSL_STATE,
-         int BEV_OPT_DEF = BEV_OPT_CLOSE_ON_FREE>
+    int BEV_OPT_DEF = BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS>
 class connector
 {
 public:

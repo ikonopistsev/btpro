@@ -69,12 +69,6 @@ public:
         std::swap(hqueue_, that.hqueue_);
     }
 
-    basic_queue& operator=(basic_queue&& that) noexcept
-    {
-        std::swap(hqueue_, that.hqueue_);
-        return *this;
-    }
-
     basic_queue(handle_t hqueue) noexcept
         : hqueue_(hqueue)
     {
@@ -82,22 +76,41 @@ public:
         static_assert(is_ref, "queue_ref only");
     }
 
-    queue_ref& operator=(handle_t hqueue) noexcept
-    {
-        assert(hqueue);
-        hqueue_ = hqueue;
-        return *this;
-    }
-
-    template<class T>
-    basic_queue(const basic_queue<T>& other) noexcept
+    basic_queue(const queue& other) noexcept
         : basic_queue(other.handle())
     {   }
 
-    template<class T>
-    queue_ref& operator=(const basic_queue<T>& other) noexcept
+    basic_queue(const queue_ref& other) noexcept
+        : basic_queue(other.handle())
+    {   }
+
+    basic_queue& operator=(basic_queue&& that) noexcept
     {
-        *this = other.hqueue_;
+        std::swap(hqueue_, that.hqueue_);
+        return *this;
+    }
+
+    void assign(handle_t hqueue) noexcept
+    {
+        assert(hqueue);
+        hqueue_ = hqueue;
+    }
+
+    queue_ref& operator=(handle_t hqueue) noexcept
+    {
+        assign(hqueue);
+        return *this;
+    }
+
+    queue_ref& operator=(const queue& other) noexcept
+    {
+        assign(other.handle());
+        return *this;
+    }
+
+    queue_ref& operator=(const queue_ref& other) noexcept
+    {
+        assign(other.handle());
         return *this;
     }
 
@@ -273,7 +286,7 @@ public:
         return tv;
     }
 
-    operator timeval() const noexcept
+    operator timeval() const
     {
         return gettimeofday_cached();
     }

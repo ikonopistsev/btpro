@@ -11,19 +11,16 @@ template<class T>
 class bevfn
 {
 public:
-    typedef void (T::*on_connect_t)();
-    typedef void (T::*on_send_t)();
-    typedef void (T::*on_recv_t)();
+    typedef void (T::*on_data_t)();
     typedef void (T::*on_event_t)(short);
     typedef bevfn<T> this_type;
 
 private:
     T& self_;
-    on_send_t send_fn_{};
-    on_recv_t recv_fn_{};
+    on_data_t send_fn_{};
+    on_data_t recv_fn_{};
     on_event_t event_fn_{};
-    on_connect_t connect_fn_{};
-    bev bev_;
+    on_data_t connect_fn_{};
 
     template<class A>
     struct proxy
@@ -34,13 +31,13 @@ private:
             static_cast<A*>(self)->do_evcb(what);
         }
 
-        static inline void send(bufferevent *, void *self) noexcept
+        static inline void sendcb(bufferevent *, void *self) noexcept
         {
             assert(self);
             static_cast<A*>(self)->do_send();
         }
 
-        static inline void recv(bufferevent *, void *self) noexcept
+        static inline void recvcb(bufferevent *, void *self) noexcept
         {
             assert(self);
             static_cast<A*>(self)->do_recv();
@@ -74,32 +71,50 @@ public:
     bevfn(bevfn&) = delete;
     bevfn& operator=(bevfn&) = delete;
 
-    bevfn(T& self, bufferevent_handle_t hbev, on_event_t fn)
+    bevfn(T& self, on_event_t fn) noexcept
         : self_(self)
-        , bev_(hbev)
         , event_fn_(fn)
     {
         assert(fn);
-        bev_.set(proxy<this_type>::send, proxy<this_type>::recv,
-                 proxy<this_type>::evcb, this);
     }
 
-    void set(on_connect_t fn)
+    bevfn(T& self, on_event_t efn, on_data_t cfn,
+          on_data_t sfn, on_data_t rfn) noexcept
+        : self_(self)
+        , send_fn_(sfn)
+        , recv_fn_(rfn)
+        , event_fn_(efn)
+        , connect_fn_(cfn)
+    {
+        assert(efn);
+        assert(cfn);
+        assert(sfn);
+        assert(rfn);
+    }
+
+    void on_connect(on_data_t fn) noexcept
     {
         assert(fn);
         connect_fn_ = fn;
     }
 
-    void connect(dns& dns, const std::string& hostname, int port)
+    void on_recv(on_data_t fn) noexcept
     {
-        bev_.connect(dns, hostname, port);
+        assert(fn);
+        recv_fn_ = fn;
     }
 
-    void connect(dns& dns, const std::string& hostname,
-        int port, on_connect_t fn)
+    void on_send(on_data_t fn) noexcept
     {
-        set(fn);
-        connect(dns, hostname, port);
+        assert(fn);
+        send_fn_ = fn;
+    }
+
+    void apply(bufferevent_handle_t hbev) noexcept
+    {
+        assert(hbev);
+        bufferevent_setcb(hbev, &proxy<this_type>::recvcb,
+            &proxy<this_type>::sendcb, &proxy<this_type>::evcb, this);
     }
 };
 

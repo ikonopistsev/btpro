@@ -132,7 +132,18 @@ static inline detail::type size(int value) noexcept
 {
     return detail::type(value, detail::name);
 }
+} // namespace sndbuf
 
+namespace rcvbuf {
+namespace detail {
+    static const char name[] = "SO_RCVBUF";
+    typedef sock_basic_option<int, SOL_SOCKET, SO_RCVBUF> type;
+} // namespace detail
+
+static inline detail::type size(int value) noexcept
+{
+    return detail::type(value, detail::name);
+}
 } // namespace sndbuf
 
 } // namespace btpro

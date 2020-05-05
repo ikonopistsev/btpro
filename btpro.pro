@@ -55,4 +55,6 @@ HEADERS += \
     ssl/ssl.hpp \
     ssl/connector.hpp \
     tcp/connector.hpp \
-    uri.hpp
+    uri.hpp \
+    ssl/bevsock.hpp \
+    tcp/bevsockfn.hpp

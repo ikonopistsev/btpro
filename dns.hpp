@@ -75,12 +75,6 @@ public:
         std::swap(hdns_, that.hdns_);
     }
 
-    basic_dns& operator=(basic_dns&& that) noexcept
-    {
-        std::swap(hdns_, that.hdns_);
-        return *this;
-    }
-
     basic_dns(handle_t hdns) noexcept
         : hdns_(hdns)
     {
@@ -88,22 +82,41 @@ public:
         static_assert(is_ref, "dns_ref only");
     }
 
-    dns_ref& operator=(handle_t hdns) noexcept
-    {
-        assert(hdns);
-        hdns_ = hdns;
-        return *this;
-    }
-
-    template<class T>
-    basic_dns(const basic_queue<T>& other) noexcept
+    basic_dns(const dns& other) noexcept
         : basic_dns(other.handle())
     {   }
 
-    template<class T>
-    dns_ref& operator=(const basic_dns<T>& other) noexcept
+    basic_dns(const dns_ref& other) noexcept
+        : basic_dns(other.handle())
+    {   }
+
+    basic_dns& operator=(basic_dns&& that) noexcept
     {
-        *this = other.hdns_;
+        std::swap(hdns_, that.hdns_);
+        return *this;
+    }
+
+    void assign(handle_t hdns) noexcept
+    {
+        assert(hdns);
+        hdns_ = hdns;
+    }
+
+    dns_ref& operator=(handle_t hdns) noexcept
+    {
+        assign(hdns);
+        return *this;
+    }
+
+    dns_ref& operator=(const dns& other) noexcept
+    {
+        assign(other.handle());
+        return *this;
+    }
+
+    dns_ref& operator=(const dns_ref& other) noexcept
+    {
+        assign(other.handle());
         return *this;
     }
 

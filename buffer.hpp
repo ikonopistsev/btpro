@@ -1,6 +1,7 @@
 #pragma once
 
 #include "btpro/btpro.hpp"
+#include "btpro/socket.hpp"
 #include "event2/buffer.h"
 
 #include <mutex>
@@ -145,7 +146,7 @@ public:
         return *this;
     }
 
-    basic_buffer(handle_t hbuf) noexcept
+    explicit basic_buffer(handle_t hbuf) noexcept
         : hbuf_(hbuf)
     {
         assert(hbuf);
@@ -369,7 +370,10 @@ public:
     // Makes the data at the beginning of an evbuffer contiguous.
     unsigned char* pullup(ev_ssize_t len)
     {
-        assert(static_cast<ev_ssize_t>(size()) <= len);
+        // @return a pointer to the contiguous memory array, or NULL
+        // if param size requested more data than is present in the buffer.
+        assert(len <= static_cast<ev_ssize_t>(size()));
+
         unsigned char *result = evbuffer_pullup(assert_handle(), len);
         if (!result)
         {
@@ -477,6 +481,13 @@ public:
     int write(socket sock)
     {
         return write(sock.fd());
+    }
+
+    int wirte(buffer buf)
+    {
+        auto size = buf.size();
+        buf.write(std::move(*this));
+        return size;
     }
 };
 

@@ -46,13 +46,11 @@ static inline void startup(unsigned char h = 2, unsigned char l = 2)
 struct tag_ref
 {
     constexpr static bool is_ref = true;
-    constexpr static bool is_obj = false;
 };
 
 struct tag_obj
 {
     constexpr static bool is_ref = false;
-    constexpr static bool is_obj = true;
 };
 
 } // namespace btpro

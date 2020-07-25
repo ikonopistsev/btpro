@@ -209,7 +209,7 @@ public:
         append(data, len);
     }
 
-    void clear(buffer other)
+    void reset(buffer other)
     {
         evbuffer_add_buffer(assert_handle(), other);
     }

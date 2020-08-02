@@ -211,7 +211,8 @@ public:
 
     void reset(buffer other)
     {
-        evbuffer_add_buffer(assert_handle(), other);
+        *this = std::move(other);
+        //evbuffer_add_buffer(assert_handle(), other);
     }
 
     basic_buffer& add_file(int fd, ev_off_t offset, ev_off_t length)

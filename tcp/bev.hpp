@@ -353,6 +353,11 @@ public:
         bufferevent_setcb(assert_handle(), rdfn, wrfn, evfn, arg);
     }
 
+    void set_timeout(timeval *timeout_read, timeval *timeout_write)
+    {
+        bufferevent_set_timeouts(assert_handle(), timeout_read, timeout_write);
+    }
+
     template<class T>
     void set(bevfn<T>& val)
     {

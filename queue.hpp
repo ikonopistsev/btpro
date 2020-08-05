@@ -6,7 +6,7 @@
 
 namespace btpro {
 
-typedef void (*queue_callback_fn)(short, evutil_socket_t);
+//typedef void (*queue_callback_fn)(short, evutil_socket_t);
 typedef std::function<void(short, evutil_socket_t)> queue_fn;
 
 namespace detail {
@@ -192,7 +192,7 @@ public:
 
             try
             {
-                (*fn)(sock, ef);
+                (*fn)(ef, sock);
             }
             catch (...)
             {   }

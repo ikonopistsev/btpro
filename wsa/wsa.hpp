@@ -1,6 +1,7 @@
 #pragma once
 
 #include "btpro/wsa/error_code.hpp"
+#include <Ws2tcpip.h>
 
 #ifndef BTPRO_INVALID_SOCKET
 #define BTPRO_INVALID_SOCKET -1

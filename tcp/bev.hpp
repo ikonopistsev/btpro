@@ -135,7 +135,7 @@ public:
     {
         assert(sa);
         check_result("bufferevent_socket_connect",
-            bufferevent_socket_connect(assert_handle(), sa, static_cast<int>(len)));
+            bufferevent_socket_connect(assert_handle(), const_cast<sockaddr*>(sa), static_cast<int>(len)));
     }
 
     void connect(const ip::addr& addr)

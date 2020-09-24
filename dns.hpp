@@ -5,13 +5,17 @@
 
 namespace btpro {
 
+#ifdef EVDNS_BASE_INITIALIZE_NAMESERVERS
 static const auto dns_initialize_nameservers = int{
     EVDNS_BASE_INITIALIZE_NAMESERVERS
 };
+#endif
 
+#ifdef EVDNS_BASE_DISABLE_WHEN_INACTIVE
 static const auto dns_disable_incative = int{
     EVDNS_BASE_DISABLE_WHEN_INACTIVE
 };
+#endif
 
 typedef evdns_base* dns_handle_t;
 

@@ -484,7 +484,7 @@ public:
         return write(sock.fd());
     }
 
-    int wirte(buffer buf)
+    int write(buffer buf)
     {
         auto size = buf.size();
         buf.write(std::move(*this));

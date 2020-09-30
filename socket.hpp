@@ -136,6 +136,12 @@ public:
         return (btpro::net::ewouldblock == err) || (btpro::net::eagain == err);
     }
 
+    static inline bool inprogress() noexcept
+    {
+        auto err = net::error();
+        return btpro::net::einprogress == err;
+    }
+
     ev_ssize_t send(const char *buf, std::size_t len, int flags = 0) noexcept
     {
         return ::send(socket_, buf, static_cast<int>(len), flags);

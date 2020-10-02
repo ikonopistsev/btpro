@@ -203,6 +203,12 @@ public:
             bufferevent_disable(assert_handle(), event));
     }
 
+    void set_watermark(short events, std::size_t lowmark,
+                       std::size_t highmark) noexcept
+    {
+        bufferevent_setwatermark(assert_handle(), events, lowmark, highmark);
+    }
+
     ev_ssize_t get_max_to_read() const noexcept
     {
         return bufferevent_get_max_to_read(assert_handle());

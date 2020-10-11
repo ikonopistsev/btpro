@@ -8,7 +8,7 @@ namespace ip {
 class addr
 {
 public:
-    typedef decltype(sockaddr::sa_family) family_type;
+    using sa_family = decltype(sockaddr::sa_family);
 
 private:
     sockaddr* sockaddr_{nullptr};
@@ -43,7 +43,7 @@ public:
         return addr(sockaddr, socklen);
     }
 
-    family_type family() const noexcept
+    sa_family family() const noexcept
     {
         return sa()->sa_family;
     }

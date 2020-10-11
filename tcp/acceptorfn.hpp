@@ -11,13 +11,13 @@ class acceptorfn
 {
 public:
     typedef void (T::*callback_fn)(socket, ip::addr);
-    typedef void (T::*on_throw_t)(std::exception_ptr);
+    typedef void (T::*throw_fn)(std::exception_ptr);
     typedef acceptorfn<T> this_type;
 
 private:
     T& self_;
     callback_fn fn_{ nullptr };
-    on_throw_t on_throw_{ nullptr };
+    throw_fn throw_fn_{ nullptr };
     listener listener_{};
 
     template<class A>
@@ -35,8 +35,8 @@ private:
     {
         try
         {
-            if (on_throw_)
-                (self_.*on_throw_)(ep);
+            if (throw_fn_)
+                (self_.*throw_fn_)(ep);
         }
         catch (...)
         {   }
@@ -66,6 +66,14 @@ public:
         assert(fn);
     }
 
+    acceptorfn(T& self, callback_fn c, throw_fn t) noexcept
+        : self_(self)
+        , fn_(c)
+        , throw_fn_(t)
+    {
+        assert(c);
+    }
+
     acceptorfn& listen(queue_handle_t queue,
         unsigned int flags, const ip::addr& sa, int backlog)
     {
@@ -89,15 +97,17 @@ public:
         return listen(queue, 0, sa, -1);
     }
 
-    acceptorfn& set(callback_fn fn) const noexcept
+    acceptorfn& set(callback_fn fn) noexcept
     {
         assert(fn);
         fn_ = fn;
+        return *this;
     }
 
-    acceptorfn& set(on_throw_t fn) const noexcept
+    acceptorfn& set(throw_fn fn) noexcept
     {
-        on_throw_ = fn;
+        throw_fn_ = fn;
+        return *this;
     }
 
     void enable()

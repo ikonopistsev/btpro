@@ -146,4 +146,24 @@ static inline detail::type size(int value) noexcept
 }
 } // namespace sndbuf
 
+#ifdef SO_ZEROCOPY
+namespace zerocopy {
+namespace detail {
+    static const char name[] = "SO_ZEROCOPY";
+    typedef sock_basic_option<int, SOL_SOCKET, SO_ZEROCOPY> type;
+} // namespace detail
+
+static inline detail::type on() noexcept
+{
+    return detail::type(1, detail::name);
+}
+
+static inline detail::type off() noexcept
+{
+    return detail::type(0, detail::name);
+}
+
+} // namespace zerocopy
+#endif // SO_ZEROCOPY
+
 } // namespace btpro

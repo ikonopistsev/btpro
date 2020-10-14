@@ -3,7 +3,6 @@
 #include "btpro/ip/addr.hpp"
 #include "btdef/string.hpp"
 #include "btdef/text.hpp"
-#include "btdef/ref.hpp"
 
 namespace btpro {
 namespace ip {
@@ -51,7 +50,7 @@ private:
                 if (f < str.size())
                 {
                     // чтобы не копировать строку
-                    auto port_str = btref::string(str).substr(f);
+                    auto port_str = std::string_view(str).substr(f);
                     if (!port_str.empty())
                         port = std::atoi(port_str.data());
                 }
@@ -201,10 +200,7 @@ private:
             auto res = inet_ntop(sa.family(), &sa->sin6_addr,
                 str.data(), static_cast<ev_socklen_t>(str.capacity()));
             if (res)
-            {
-                auto len = std::strlen(res);
-                str.increase(len);
-            }
+                str.resize(std::strlen(res));
             return str;
         }
     };
@@ -216,15 +212,9 @@ public:
         return p(*this);
     }
 
-    btdef::util::string string() const noexcept
-    {
-        print<btdef::util::string> p;
-        return p(*this);
-    }
-
     std::string to_string() const
     {
-        btdef::util::text text = to_text();
+        auto text = to_text();
         return std::string(text.data(), text.size());
     }
 };

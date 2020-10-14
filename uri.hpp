@@ -18,7 +18,7 @@ private:
     std::string_view user_{};
     std::string_view passcode_{};
 
-    static constexpr auto npos = std::string_view::npos;
+    constexpr static auto npos = std::string_view::npos;
 
     auto split_auth(std::string_view auth) noexcept
     {

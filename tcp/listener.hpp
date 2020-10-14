@@ -27,7 +27,7 @@ private:
         return handle;
     }
 
-    static constexpr auto lev_opt = unsigned{
+    constexpr static auto lev_opt = unsigned{
         LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE
     };
 

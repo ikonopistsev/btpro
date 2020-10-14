@@ -107,9 +107,9 @@ public:
         assert(str && (size > 0));
 
         static const char localhost[] = "localhost";
-        static constexpr auto localhost_size = sizeof(localhost) - 1;
+        constexpr static auto localhost_size = sizeof(localhost) - 1;
         // ':' and port number
-        static constexpr auto size_with_port = localhost_size + 1;
+        constexpr static auto size_with_port = localhost_size + 1;
         if (evutil_ascii_strncasecmp(str, localhost, localhost_size) == 0)
         {
             if ((size > size_with_port) && (str[localhost_size] == ':'))
@@ -159,18 +159,6 @@ public:
             return ipv6::addr(*this).to_text();
 
         return btdef::util::text();
-    }
-
-    btdef::util::string string() const noexcept
-    {
-        auto fm = family();
-
-        if (fm == AF_INET)
-            return ipv4::addr(*this).string();
-        else if (fm == AF_INET6)
-            return ipv6::addr(*this).string();
-
-        return btdef::util::string();
     }
 
     std::string to_string() const

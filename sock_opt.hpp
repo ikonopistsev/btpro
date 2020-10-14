@@ -10,9 +10,9 @@ namespace btpro {
 #define BTPRO_SOCK_NONBLOCK 0
 #endif // SOCK_NONBLOCK
 
-static constexpr auto sock_nonblock = int{ BTPRO_SOCK_NONBLOCK };
-static constexpr auto sock_dgram = int{ SOCK_DGRAM|sock_nonblock };
-static constexpr auto sock_stream = int{ SOCK_STREAM|sock_nonblock };
+constexpr static auto sock_nonblock = int{ BTPRO_SOCK_NONBLOCK };
+constexpr static auto sock_dgram = int{ SOCK_DGRAM|sock_nonblock };
+constexpr static auto sock_stream = int{ SOCK_STREAM|sock_nonblock };
 
 template<class T, int SO_LEVEL, int SO_OPTID>
 class sock_basic_option

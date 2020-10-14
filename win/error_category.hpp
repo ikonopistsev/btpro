@@ -8,8 +8,8 @@ namespace btpro {
 
 struct code
 {
-    static constexpr auto sucsess = int{ 0 };
-    static constexpr auto fail = int{ -1 };
+    constexpr static auto sucsess = int{ 0 };
+    constexpr static auto fail = int{ -1 };
 };
 
 namespace win {

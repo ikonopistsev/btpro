@@ -436,11 +436,19 @@ public:
         return vec;
     }
 
+#if __cplusplus >= 201703L
     std::string str() const
     {
-        std::vector<char> vec = vector();
-        return { vec.data(), vec.size() };
+        std::string str;
+        std::size_t len = size();
+        if (len)
+        {
+            str.resize(len);
+            copyout(str.data(), len);
+        }
+        return str;
     }
+#endif
 
     bool empty() const noexcept
     {
@@ -462,6 +470,11 @@ public:
         std::size_t result = remove(out, N - 1);
         out[result] = '\0';
         return result;
+    }
+
+    int peek(net::iov* vec_out, int n_vec) noexcept
+    {
+        return evbuffer_peek(assert_handle(), -1, nullptr, vec_out, n_vec);
     }
 
     int read(evutil_socket_t fd, int howmuch)

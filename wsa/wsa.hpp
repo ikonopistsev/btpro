@@ -2,6 +2,7 @@
 
 #include "btpro/wsa/error_code.hpp"
 #include <Ws2tcpip.h>
+#include <Ws2def.h>
 
 #ifndef BTPRO_INVALID_SOCKET
 #define BTPRO_INVALID_SOCKET -1
@@ -60,6 +61,26 @@ constexpr static auto eagain = int{ EAGAIN };
 constexpr static auto epipe = int{ EPIPE };
 constexpr static auto enomem = int{ ENOMEM };
 #undef BTPRO_SOCK_ERROR
+
+struct iov
+    : public WSABUF
+{
+    using value_type = decltype (WSABUF::buf);
+    using size_type = decltype (WSABUF::len);
+
+    void assign(value_type base, size_type len) noexcept
+    {
+        buf = base;
+        len = len;
+    }
+
+    template<class T>
+    void assign(const T& other) noexcept
+    {
+        assign(static_cast<value_type>(other.data()),
+               static_cast<size_type>(other.size()));
+    }
+};
 
 } // namespace wsa
 

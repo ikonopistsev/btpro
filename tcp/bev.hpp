@@ -186,10 +186,11 @@ public:
         return be::socket(fd());
     }
 
-    operator be::socket() const noexcept
-    {
-        return socket();
-    }
+//    evil
+//    operator be::socket() const noexcept
+//    {
+//        return socket();
+//    }
 
     void enable(short event)
     {

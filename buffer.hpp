@@ -368,6 +368,12 @@ public:
         return result;
     }
 
+    std::size_t copyout(buffer& other)
+    {
+        return check_size("evbuffer_add_buffer",
+            evbuffer_add_buffer(other, assert_handle()));
+    }
+
     // Makes the data at the beginning of an evbuffer contiguous.
     unsigned char* pullup(ev_ssize_t len)
     {

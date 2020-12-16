@@ -442,7 +442,6 @@ public:
         return vec;
     }
 
-#if __cplusplus >= 201703L
     std::string str() const
     {
         std::string str;
@@ -454,7 +453,6 @@ public:
         }
         return str;
     }
-#endif
 
     bool empty() const noexcept
     {

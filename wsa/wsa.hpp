@@ -68,10 +68,10 @@ struct iov
     using value_type = decltype (WSABUF::buf);
     using size_type = decltype (WSABUF::len);
 
-    void assign(value_type base, size_type len) noexcept
+    void assign(value_type b, size_type l) noexcept
     {
-        buf = base;
-        len = len;
+        buf = b;
+        len = l;
     }
 
     template<class T>

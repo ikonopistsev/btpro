@@ -22,6 +22,29 @@ macx {
 }
 
 HEADERS += \
+    curl/client.hpp \
+    curl/curl.hpp \
+    curl/header/store.hpp \
+    curl/header/parser.hpp \
+    curl/info.hpp \
+    curl/io/buffer.hpp \
+    curl/option.hpp \
+    curl/request.hpp \
+    curl/request/base.hpp \
+    curl/request/get.hpp \
+    curl/request/websocket.hpp \
+    curl/resp.hpp \
+    curl/responce/base.hpp \
+    curl/responce/get.hpp \
+    curl/responce/websocket.hpp \
+    curl/slist.hpp \
+    curl/websocket.hpp \
+    http/connection.hpp \
+    http/request.hpp \
+    ssl/base64.hpp \
+    ssl/context.hpp \
+    ssl/rand.hpp \
+    ssl/sha.hpp \
     tcp/acceptor.hpp \
     tcp/bev.hpp \
     tcp/listener.hpp \
@@ -52,9 +75,9 @@ HEADERS += \
     evstack.hpp \
     dns.hpp \
     tcp/bevfn.hpp \
-    ssl/ssl.hpp \
     ssl/connector.hpp \
     tcp/connector.hpp \
     uri.hpp \
     ssl/bevsock.hpp \
-    tcp/bevsockfn.hpp
+    tcp/bevsockfn.hpp \
+    wslay/context.hpp

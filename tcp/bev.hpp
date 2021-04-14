@@ -68,6 +68,11 @@ public:
         assert(hbev);
     }
 
+    void attach(handle_t hbev) noexcept
+    {
+        hbev_ = hbev;
+    }
+
     void create(queue_handle_t queue,
         be::socket sock, int opt = BEV_OPT_CLOSE_ON_FREE)
     {
@@ -135,7 +140,8 @@ public:
     {
         assert(sa);
         check_result("bufferevent_socket_connect",
-            bufferevent_socket_connect(assert_handle(), const_cast<sockaddr*>(sa), static_cast<int>(len)));
+            bufferevent_socket_connect(assert_handle(),
+                const_cast<sockaddr*>(sa), static_cast<int>(len)));
     }
 
     void connect(const ip::addr& addr)

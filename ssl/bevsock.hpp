@@ -2,81 +2,97 @@
 
 #include "btpro/dns.hpp"
 #include "btpro/tcp/bev.hpp"
-#include "btpro/ssl/ssl.hpp"
+#include "btpro/ssl/context.hpp"
 #include "event2/bufferevent_ssl.h"
 #include <openssl/ssl.h>
-#include "memory"
+#include <openssl/err.h>
 
 namespace btpro {
 namespace ssl {
 
-template<bufferevent_ssl_state BEV_SSL_STATE,
-    int BEV_OPT_DEF = BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS>
-class connector
+class bevtls
 {
 public:
-    typedef tcp::bev::handle_t handle_t;
+    using bev = tcp::bev;
 
 private:
-    openssl& ssl_;
-    queue_handle_t queue_{};
-    dns_handle_t dns_{};
+    bev& bev_;
 
-    handle_t create_bufferevent(btpro::socket sock)
+public:
+    bevtls(bev& bev) noexcept
+        : bev_(bev)
+    {   }
+
+    void create(handle_t ctx, queue_ref queue, socket sock,
+                bufferevent_ssl_state state, int options)
     {
-        auto ssl = SSL_new(ssl_.handle());
+        assert(ctx);
+
+        auto ssl = SSL_new(ctx);
         if (!ssl)
             throw std::runtime_error("SSL_new");
 
-        auto handle = bufferevent_openssl_socket_new(queue_,
-            sock.fd(), ssl, BEV_SSL_STATE, BEV_OPT_DEF);
-
+        auto hbev = bufferevent_openssl_socket_new(queue,
+            sock.fd(), ssl, state, options);
         // если не создали сокет убиваем ssl
-        if (!handle)
+        if (!hbev)
+        {
             SSL_shutdown(ssl);
+            throw std::runtime_error("bufferevent_openssl_socket_new");
+        }
 
-        return handle;
+        bev_.destroy();
+        bev_.attach(hbev);
     }
 
-public:
-    connector(openssl& ssl, queue_handle_t queue)
-        : ssl_(ssl)
-        , queue_(queue)
-    {   }
-
-    connector(openssl& ssl, queue_handle_t queue, dns_handle_t dns)
-        : ssl_(ssl)
-        , queue_(queue)
-        , dns_(dns)
-    {   }
-
-    tcp::bev create(socket sock = socket())
+    void destory()
     {
-        auto handle = create_bufferevent(sock);
-        if (!handle)
-            throw std::runtime_error("bufferevent_socket_new");
-
-        return tcp::bev(handle);
+        shutdown();
+        bev_.destroy();
     }
 
-    void connect(tcp::bev& bev, const std::string& hostname, int port)
+    unsigned long get_openssl_error()
     {
-        bev.connect(dns_, hostname, port);
+        return bufferevent_get_openssl_error(bev_);
     }
 
-    void shutdown(handle_t handle)
+    std::string get_openssl_error_string(unsigned long err)
     {
-        auto ssl = bufferevent_openssl_get_ssl(handle);
+        std::string rc;
+        rc.resize(256);
+
+        ERR_error_string_n(err, rc.data(), rc.size());
+        rc.resize(std::strlen(rc.data()));
+
+        return rc;
+    }
+
+    void connect(dns_ref dns, const std::string& hostname, int port)
+    {
+        auto ssl = bufferevent_openssl_get_ssl(bev_);
+        if (!ssl)
+            throw std::runtime_error("bufferevent_openssl_get_ssl");
+
+        // для tls надо установить имя хоста к которому подключаемся
+        auto ret = SSL_set_tlsext_host_name(ssl, hostname.c_str());
+        if (!ret)
+            throw std::runtime_error("SSL_set_tlsext_host_name");
+
+        bev_.connect(dns, hostname, port);
+    }
+
+    void shutdown() noexcept
+    {
+        auto ssl = bufferevent_openssl_get_ssl(bev_);
         if (ssl)
         {
             SSL_set_shutdown(ssl, SSL_RECEIVED_SHUTDOWN);
             SSL_shutdown(ssl);
         }
-    }
-
-    void shutdown(tcp::bev& bev)
-    {
-        shutdown(bev.handle());
+        else
+        {
+            // FIXME add alert
+        }
     }
 };
 

@@ -82,6 +82,59 @@ public:
         event_.create(queue, ef, proxy<F>::evcb, &fn);
     }
 
+
+    template<class F>
+    void create_then_add(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef, timeval* tv, F& fn)
+    {
+        create(queue, fd, ef, proxy<F>::evcb, &fn);
+        add(tv);
+    }
+
+    template<class F>
+    void create_then_add(queue_handle_t queue, be::socket sock, event_flag_t ef, timeval* tv, F& fn)
+    {
+        create(queue, sock, ef, proxy<F>::evcb, &fn);
+        add(tv);
+    }
+
+    template<class F, class Rep, class Period>
+    void create_then_add(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
+    {
+        create(queue, fd, ef, proxy<F>::evcb, &fn);
+        add(timeout);
+    }
+
+    template<class F, class Rep, class Period>
+    void create_then_add(queue_handle_t queue, be::socket sock, event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
+    {
+        create(queue, sock, ef, proxy<F>::evcb, &fn);
+        add(timeout);
+    }
+
+    // !!! это не выполнить на следующем цикле очереди
+    // это добавить без таймаута
+    // допустим вечное ожидание EV_READ или сигнала
+    // конструктор для лямбды
+    template<class F>
+    void create_then_add(queue_handle_t queue, event_flag_t ef, timeval* tv, F& fn)
+    {
+        create(queue, ef, proxy<F>::evcb, &fn);
+        add(tv);
+    }
+
+    // конструктор для лямбды
+    template<class F>
+    void create_then_add(queue_handle_t queue, event_flag_t ef, F& fn)
+    {
+        create_then_add(queue, ef, nullptr, fn);
+    }
+
+    template<class F, class Rep, class Period>
+    void create_then_add(queue_handle_t queue, event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
+    {
+        create_then_add(queue, ef, make_timeval(timeout), fn);
+    }
+
     bool empty() const noexcept
     {
         return event_.empty();

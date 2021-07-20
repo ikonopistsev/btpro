@@ -126,9 +126,9 @@ public:
         return buffer_ref(output_handle());
     }
 
-    queue_ref queue() const noexcept
+    auto queue() const noexcept
     {
-        return queue_ref(queue_handle());
+        return queue_handle();
     }
 
     int get_dns_error() const noexcept

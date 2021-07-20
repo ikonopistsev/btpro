@@ -19,44 +19,19 @@ static const auto dns_disable_incative = int{
 
 typedef evdns_base* dns_handle_t;
 
-namespace detail {
-
-template<class R>
-struct dns_destroy;
-
-template<>
-struct dns_destroy<tag_ref>
-{
-    constexpr static inline void destroy_handle(dns_handle_t) noexcept
-    {   }
-};
-
-template<>
-struct dns_destroy<tag_obj>
-{
-    static inline void destroy_handle(dns_handle_t value) noexcept
-    {
-        if (nullptr != value)
-            evdns_base_free(value, DNS_ERR_SHUTDOWN);
-    }
-};
-
-} // detail
-
-template<class R>
-class basic_dns;
-
-typedef basic_dns<tag_ref> dns_ref;
-typedef basic_dns<tag_obj> dns;
-
-template<class R>
-class basic_dns
+class dns
 {
 public:
     typedef dns_handle_t handle_t;
-    constexpr static bool is_ref = R::is_ref;
 
 private:
+
+    static inline void destroy(dns_handle_t value) noexcept
+    {
+        if (nullptr != value)
+            evdns_base_free(value, DNS_ERR_SHUTDOWN);
+    };
+
     handle_t hdns_{nullptr};
 
     handle_t assert_handle() const noexcept
@@ -67,61 +42,31 @@ private:
     }
 
 public:
-    basic_dns() = default;
+    dns() = default;
 
-    ~basic_dns() noexcept
+    ~dns() noexcept
     {
-        detail::dns_destroy<R>::destroy_handle(hdns_);
+        destroy(hdns_);
     }
 
-    basic_dns(basic_dns&& that) noexcept
+    dns(dns&& that) noexcept
     {
         std::swap(hdns_, that.hdns_);
     }
 
-    basic_dns(handle_t hdns) noexcept
-        : hdns_(hdns)
-    {
-        assert(hdns);
-        static_assert(is_ref, "dns_ref only");
-    }
-
-    basic_dns(const dns& other) noexcept
-        : basic_dns(other.handle())
-    {   }
-
-    basic_dns(const dns_ref& other) noexcept
-        : basic_dns(other.handle())
-    {   }
-
-    basic_dns& operator=(basic_dns&& that) noexcept
+    dns& operator=(dns&& that) noexcept
     {
         std::swap(hdns_, that.hdns_);
         return *this;
     }
+
+    dns(const dns& other) = delete;
+    dns& operator=(const dns& other) = delete;
 
     void assign(handle_t hdns) noexcept
     {
         assert(hdns);
         hdns_ = hdns;
-    }
-
-    dns_ref& operator=(handle_t hdns) noexcept
-    {
-        assign(hdns);
-        return *this;
-    }
-
-    dns_ref& operator=(const dns& other) noexcept
-    {
-        assign(other.handle());
-        return *this;
-    }
-
-    dns_ref& operator=(const dns_ref& other) noexcept
-    {
-        assign(other.handle());
-        return *this;
     }
 
     handle_t handle() const noexcept
@@ -143,7 +88,6 @@ public:
     {
         assert(hqueue);
         assert(empty());
-        static_assert(!is_ref, "no dns_ref");
 
         auto hdns = evdns_base_new(hqueue, opt);
         if (!hdns)
@@ -153,7 +97,7 @@ public:
         randomize_case("0");
     }
 
-    basic_dns& set(const char *key, const char *val)
+    dns& set(const char *key, const char *val)
     {
         assert(key && val);
         assert((key[0] != '\0') && (val[0] != '\0'));
@@ -164,17 +108,17 @@ public:
         return *this;
     }
 
-    basic_dns& randomize_case(const char *val)
+    dns& randomize_case(const char *val)
     {
         return set("randomize-case", val);
     }
 
-    basic_dns& timeout(const char *val)
+    dns& timeout(const char *val)
     {
         return set("timeout", val);
     }
 
-    basic_dns& max_timeouts(const char *val)
+    dns& max_timeouts(const char *val)
     {
         return set("max-timeouts", val);
     }

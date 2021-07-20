@@ -2,6 +2,7 @@
 
 #include "btpro/evheap.hpp"
 #include "btpro/evstack.hpp"
+#include "btpro/queue.hpp"
 
 namespace btpro {
 
@@ -26,6 +27,18 @@ private:
             assert(arg);
             (*static_cast<F*>(arg))(fd, ef);
         }
+
+        static inline void evsfncb(evutil_socket_t fd, short ef, void* arg)
+        {
+            assert(arg);
+            static_cast<evsfn<F>*>(arg)->call(fd, ef);
+        }
+
+        static inline void evtfncb(evutil_socket_t, short, void* arg)
+        {
+            assert(arg);
+            static_cast<evtfn<F>*>(arg)->call();
+        }
     };
 
     event_handle_t assert_handle() const noexcept
@@ -44,6 +57,19 @@ public:
         event_.deallocate();
     }
 
+    template<class P>
+    void create(queue_handle_t queue, evutil_socket_t fd,
+                event_flag_t ef, evsfn<P>& ev)
+    {
+        event_.create(queue, fd, ef, proxy<evsfn<P>>::evsfncb, &ev);
+    }
+
+    template<class P>
+    void create(queue_handle_t queue, event_flag_t ef, evtfn<P>& ev)
+    {
+        event_.create(queue, -1, ef, proxy<evtfn<P>>::evtfncb, &ev);
+    }
+
     void create(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef,
         event_callback_fn fn, void *arg)
     {
@@ -56,7 +82,8 @@ public:
         event_.create(queue, sock, ef, fn, arg);
     }
 
-    void create(queue_handle_t queue, event_flag_t ef, event_callback_fn fn, void *arg)
+    void create(queue_handle_t queue, event_flag_t ef,
+                event_callback_fn fn, void *arg)
     {
         event_.create(queue, ef, fn, arg);
     }
@@ -64,13 +91,15 @@ public:
     // конструктор для лямбды
     // можно использовать с сигналами
     template<class F>
-    void create(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef, F& fn)
+    void create(queue_handle_t queue, evutil_socket_t fd,
+                event_flag_t ef, F& fn)
     {
         event_.create(queue, fd, ef, proxy<F>::evcb, &fn);
     }
 
     template<class F>
-    void create(queue_handle_t queue, be::socket sock, event_flag_t ef, F& fn)
+    void create(queue_handle_t queue, be::socket sock,
+                event_flag_t ef, F& fn)
     {
         event_.create(queue, sock, ef, proxy<F>::evcb, &fn);
     }

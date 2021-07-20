@@ -6,48 +6,52 @@
 
 namespace btpro {
 
+template<class T>
+struct evsfn
+{
+    typedef void (T::*fn_type)(evutil_socket_t, short);
+
+    T& self_;
+    fn_type fn_;
+
+    void call(evutil_socket_t fd, short ef)
+    {
+        assert(fn_);
+        (self_.*fn_)(fd, ef);
+    }
+};
+
+template<class T>
+struct evtfn
+{
+    typedef void (T::*fn_type)();
+
+    T& self_;
+    fn_type fn_;
+
+    void call()
+    {
+        assert(fn_);
+        (self_.*fn_)();
+    }
+};
+
 //typedef void (*queue_callback_fn)(short, evutil_socket_t);
 typedef std::function<void(short, evutil_socket_t)> queue_fn;
 
-namespace detail {
-
-template<class R>
-struct queue_destroy;
-
-template<>
-struct queue_destroy<tag_ref>
+class queue
 {
-    constexpr static inline void destroy_handle(queue_handle_t) noexcept
-    {   }
-};
+public:
+    typedef queue_handle_t handle_t;
 
-template<>
-struct queue_destroy<tag_obj>
-{
+private:
+    handle_t hqueue_{ nullptr };
+
     static inline void destroy_handle(queue_handle_t hqueue) noexcept
     {
         if (nullptr != hqueue)
             event_base_free(hqueue);
     }
-};
-
-} // detail
-
-template<class R>
-class basic_queue;
-
-typedef basic_queue<tag_ref> queue_ref;
-typedef basic_queue<tag_obj> queue;
-
-template<class R>
-class basic_queue
-{
-public:
-    typedef queue_handle_t handle_t;
-    constexpr static bool is_ref = R::is_ref;
-
-private:
-    handle_t hqueue_{ nullptr };
 
     handle_t assert_handle() const noexcept
     {
@@ -57,34 +61,22 @@ private:
     }
 
 public:
-    basic_queue() = default;
+    queue() = default;
 
-    ~basic_queue() noexcept
+    ~queue() noexcept
     {
-        detail::queue_destroy<R>::destroy_handle(hqueue_);
+        destroy_handle(hqueue_);
     }
 
-    basic_queue(basic_queue&& that) noexcept
+    queue(queue&& that) noexcept
     {
         std::swap(hqueue_, that.hqueue_);
     }
 
-    basic_queue(handle_t hqueue) noexcept
-        : hqueue_(hqueue)
-    {
-        assert(hqueue);
-        static_assert(is_ref, "queue_ref only");
-    }
+    queue(const queue& other) = delete;
+    queue& operator=(const queue& other) = delete;
 
-    basic_queue(const queue& other) noexcept
-        : basic_queue(other.handle())
-    {   }
-
-    basic_queue(const queue_ref& other) noexcept
-        : basic_queue(other.handle())
-    {   }
-
-    basic_queue& operator=(basic_queue&& that) noexcept
+    queue& operator=(queue&& that) noexcept
     {
         std::swap(hqueue_, that.hqueue_);
         return *this;
@@ -94,24 +86,6 @@ public:
     {
         assert(hqueue);
         hqueue_ = hqueue;
-    }
-
-    queue_ref& operator=(handle_t hqueue) noexcept
-    {
-        assign(hqueue);
-        return *this;
-    }
-
-    queue_ref& operator=(const queue& other) noexcept
-    {
-        assign(other.handle());
-        return *this;
-    }
-
-    queue_ref& operator=(const queue_ref& other) noexcept
-    {
-        assign(other.handle());
-        return *this;
     }
 
     handle_t handle() const noexcept
@@ -131,8 +105,6 @@ public:
 
     void create()
     {
-        static_assert(!is_ref, "no queue_ref");
-
         assert(empty());
 
         auto hqueue = event_base_new();
@@ -144,8 +116,6 @@ public:
 
     void create(const config& conf)
     {
-        static_assert(!is_ref, "no queue_ref");
-
         assert(empty());
 
         auto hqueue = event_base_new_with_config(conf);
@@ -157,21 +127,21 @@ public:
 
     void destroy() noexcept
     {
-        detail::queue_destroy<R>::destroy_handle(hqueue_);
+        destroy_handle(hqueue_);
         hqueue_ = nullptr;
     }
 
     template<class T>
     struct proxy
     {
-        static inline void make_once(basic_queue& queue,
+        static inline void make_once(queue& queue,
         evutil_socket_t fd, short ef, timeval tv, std::reference_wrapper<T> fn)
         {
             queue.once(fd, ef, tv, call, &fn.get());
         }
 
         template<class F>
-        static inline void make_once(basic_queue& queue,
+        static inline void make_once(queue& queue,
             evutil_socket_t fd, short ef, timeval tv, F&& f)
         {
             queue.once(fd, ef, tv, callfun, new T(std::forward<F>(f)));

@@ -236,11 +236,11 @@ public:
         bufferevent_unlock(assert_handle());
     }
 
-    template<typename T>
-    void sync(T&& func)
+    template<typename F>
+    void sync(F fn)
     {
         std::lock_guard<bev> l(*this);
-        func(*this);
+        fn(*this);
     }
 
     void write(const void *data, std::size_t size)

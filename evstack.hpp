@@ -34,9 +34,8 @@ public:
         // без метода не получится
         assert(queue && fn && empty());
 
-        auto res = event_assign(&event_, queue, fd, ef, fn, arg);
-        if (code::fail == res)
-            throw std::runtime_error("event_assign");
+        detail::check_result("event_assign",
+            event_assign(&event_, queue, fd, ef, fn, arg));
     }
 
     void create(queue_handle_t queue, be::socket sock,

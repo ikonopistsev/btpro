@@ -17,12 +17,12 @@ static const auto dns_disable_incative = int{
 };
 #endif
 
-typedef evdns_base* dns_handle_t;
+using dns_handle_t = evdns_base*;
 
 class dns
 {
 public:
-    typedef dns_handle_t handle_t;
+    using handle_t = dns_handle_t;
 
 private:
 
@@ -102,9 +102,8 @@ public:
         assert(key && val);
         assert((key[0] != '\0') && (val[0] != '\0'));
 
-        auto result = evdns_base_set_option(assert_handle(), key, val);
-        if (result == code::fail)
-            throw std::runtime_error("evdns_base_set_option");
+        detail::check_result("evdns_base_set_option",
+            evdns_base_set_option(assert_handle(), key, val));
         return *this;
     }
 

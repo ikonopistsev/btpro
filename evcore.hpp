@@ -113,28 +113,32 @@ public:
 
 
     template<class F>
-    void create_then_add(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef, timeval* tv, F& fn)
+    void create_then_add(queue_handle_t queue, evutil_socket_t fd,
+                         event_flag_t ef, timeval* tv, F& fn)
     {
         create(queue, fd, ef, proxy<F>::evcb, &fn);
         add(tv);
     }
 
     template<class F>
-    void create_then_add(queue_handle_t queue, be::socket sock, event_flag_t ef, timeval* tv, F& fn)
+    void create_then_add(queue_handle_t queue, be::socket sock,
+                         event_flag_t ef, timeval* tv, F& fn)
     {
         create(queue, sock, ef, proxy<F>::evcb, &fn);
         add(tv);
     }
 
     template<class F, class Rep, class Period>
-    void create_then_add(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
+    void create_then_add(queue_handle_t queue, evutil_socket_t fd,
+        event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
     {
         create(queue, fd, ef, proxy<F>::evcb, &fn);
         add(timeout);
     }
 
     template<class F, class Rep, class Period>
-    void create_then_add(queue_handle_t queue, be::socket sock, event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
+    void create_then_add(queue_handle_t queue, be::socket sock,
+        event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
     {
         create(queue, sock, ef, proxy<F>::evcb, &fn);
         add(timeout);
@@ -145,7 +149,8 @@ public:
     // допустим вечное ожидание EV_READ или сигнала
     // конструктор для лямбды
     template<class F>
-    void create_then_add(queue_handle_t queue, event_flag_t ef, timeval* tv, F& fn)
+    void create_then_add(queue_handle_t queue, event_flag_t ef,
+                         timeval* tv, F& fn)
     {
         create(queue, ef, proxy<F>::evcb, &fn);
         add(tv);
@@ -159,7 +164,8 @@ public:
     }
 
     template<class F, class Rep, class Period>
-    void create_then_add(queue_handle_t queue, event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
+    void create_then_add(queue_handle_t queue, event_flag_t ef,
+                         std::chrono::duration<Rep, Period> timeout, F& fn)
     {
         create_then_add(queue, ef, make_timeval(timeout), fn);
     }
@@ -189,9 +195,8 @@ public:
     // допустим вечное ожидание EV_READ или сигнала
     void add(timeval* tv = nullptr)
     {
-        auto res = event_add(assert_handle(), tv);
-        if (code::fail == res)
-            throw std::runtime_error("event_add");
+        detail::check_result("event_add",
+            event_add(assert_handle(), tv));
     }
 
     void add(timeval tv)
@@ -207,9 +212,8 @@ public:
 
     void remove()
     {
-        auto res = event_del(assert_handle());
-        if (code::fail == res)
-            throw std::runtime_error("event_del");
+        detail::check_result("event_del",
+            event_del(assert_handle()));
     }
 
     // метод запускает эвент напрямую
@@ -219,13 +223,10 @@ public:
         event_active(assert_handle(), res, 0);
     }
 
-    // можно установить приоретет
-    // но нужно ли ...
     evcore& set_priority(int priority)
     {
-        auto res = event_priority_set(assert_handle(), priority);
-        if (code::fail == res)
-            throw std::runtime_error("event_priority_set");
+        detail::check_result("event_priority_set",
+            event_priority_set(assert_handle(), priority));
         return *this;
     }
 

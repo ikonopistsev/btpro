@@ -9,16 +9,14 @@ namespace btpro {
 #ifdef _WIN32
 static inline void use_threads()
 {
-    auto res = evthread_use_windows_threads();
-    if (code::sucsess != res)
-        throw std::runtime_error("evthread_use_windows_threads");
+    detail::check_result("evthread_use_pthreads",
+        evthread_use_windows_threads());
 }
 #else
 static inline void use_threads()
 {
-    auto res = evthread_use_pthreads();
-    if (code::sucsess != res)
-        throw std::runtime_error("evthread_use_pthreads");
+    detail::check_result("evthread_use_pthreads",
+        evthread_use_pthreads());
 }
 #endif // _WIN32
 

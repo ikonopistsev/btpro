@@ -120,10 +120,8 @@ public:
         else
         {
             int len = capacity;
-            auto res = evutil_parse_sockaddr_port(str, sa(), &len);
-            if (code::fail == res)
-                throw std::runtime_error("evutil_parse_sockaddr_port");
-
+            detail::check_result("evutil_parse_sockaddr_port",
+                evutil_parse_sockaddr_port(str, sa(), &len));
             set_socklen(static_cast<ev_socklen_t>(len));
         }
     }

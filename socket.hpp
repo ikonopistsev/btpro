@@ -155,14 +155,16 @@ public:
     ev_ssize_t sendto(const ip::addr& addr,
         const char *buf, std::size_t len, int flags = 0) noexcept
     {
-        return ::sendto(socket_, buf, static_cast<int>(len), flags, addr.sa(), addr.size());
+        return ::sendto(socket_, buf, static_cast<int>(len),
+                        flags, addr.sa(), addr.size());
     }
 
     ev_ssize_t recvfrom(sock_addr& sa,
         char *buf, std::size_t len, int flags = 0) noexcept
     {
         ev_socklen_t salen = sock_addr::capacity;
-        auto res = ::recvfrom(socket_, buf, static_cast<int>(len), flags, sa.sa(), &salen);
+        auto res = ::recvfrom(socket_, buf, static_cast<int>(len),
+                              flags, sa.sa(), &salen);
         if (res != code::fail)
             sa.resize(salen);
         return res;

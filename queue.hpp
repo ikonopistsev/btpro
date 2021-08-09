@@ -37,7 +37,7 @@ struct evtfn
 };
 
 //typedef void (*queue_callback_fn)(short, evutil_socket_t);
-typedef std::function<void(short, evutil_socket_t)> queue_fn;
+using queue_fn = std::function<void(short, evutil_socket_t)>;
 
 class queue
 {
@@ -215,9 +215,8 @@ public:
 
     void loopexit(timeval tv)
     {
-        auto res = event_base_loopexit(assert_handle(), &tv);
-        if (code::fail == res)
-            throw std::runtime_error("event_base_loopexit");
+        detail::check_result("event_base_loopexit",
+            event_base_loopexit(assert_handle(), &tv));
     }
 
     template<class Rep, class Period>
@@ -228,9 +227,8 @@ public:
 
     void loop_break()
     {
-        auto res = event_base_loopbreak(assert_handle());
-        if (code::fail == res)
-            throw std::runtime_error("event_base_loopbreak");
+        detail::check_result("event_base_loopbreak",
+            event_base_loopbreak(assert_handle()));
     }
 
     bool stopped() const noexcept
@@ -241,18 +239,16 @@ public:
 #ifdef EVENT_MAX_PRIORITIES
     void priority_init(int level)
     {
-        auto res = event_base_priority_init(assert_handle(), level);
-        if (res == code::fail)
-            throw std::runtime_error("event_base_priority_init");
+        detail::check_result("event_base_priority_init",
+            event_base_priority_init(assert_handle(), level));
     }
 #endif // EVENT_MAX_PRIORITIES
 
     timeval gettimeofday_cached() const
     {
         timeval tv;
-        auto res = event_base_gettimeofday_cached(assert_handle(), &tv);
-        if (code::fail == res)
-            throw std::runtime_error("event_base_gettimeofday_cached");
+        detail::check_result("event_base_gettimeofday_cached",
+            event_base_gettimeofday_cached(assert_handle(), &tv));
         return tv;
     }
 
@@ -265,9 +261,8 @@ public:
     void once(evutil_socket_t fd, short ef, timeval tv,
         event_callback_fn fn, void *arg)
     {
-        auto res = event_base_once(assert_handle(), fd, ef, fn, arg, &tv);
-        if (code::fail == res)
-            throw std::runtime_error("event_base_once");
+        detail::check_result("event_base_once",
+            event_base_once(assert_handle(), fd, ef, fn, arg, &tv));
     }
 
     template<class Rep, class Period>

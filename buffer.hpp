@@ -9,130 +9,109 @@
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <type_traits>
 
 namespace btpro {
 
-typedef evbuffer* buffer_handle_t;
+using evbufer_ptr = evbuffer*;
 
 namespace detail {
 
-template<class R>
-struct buffer_create;
-
-template<>
-struct buffer_create<tag_ref>
+struct ref_allocator
 {
-    constexpr static inline buffer_handle_t create_handle() noexcept
+    constexpr static inline evbufer_ptr allocate() noexcept
     {
         return nullptr;
     }
+
+    constexpr static inline void free(evbufer_ptr) noexcept
+    {   }
 };
 
-template<>
-struct buffer_create<tag_obj>
+struct buf_allocator
 {
-    static inline buffer_handle_t create_handle()
+    static auto allocate()
     {
-        auto hbuf = evbuffer_new();
-        if (!hbuf)
+        auto ptr = evbuffer_new();
+        if (!ptr)
             throw std::runtime_error("evbuffer_new");
-        return hbuf;
+        return ptr;
     }
-};
 
-template<class T>
-struct buffer_destroy;
-
-template<>
-struct buffer_destroy<tag_ref>
-{
-    constexpr static inline void destroy_handle(buffer_handle_t) noexcept
-    {   }
-};
-
-template<>
-struct buffer_destroy<tag_obj>
-{
-    static inline void destroy_handle(buffer_handle_t hbuf) noexcept
+    static void free(evbufer_ptr ptr) noexcept
     {
-        evbuffer_free(hbuf);
+        evbuffer_free(ptr);
     }
-};
-
-template<class tag_ref>
-struct buffer_handle;
-
-template<>
-struct buffer_handle<tag_ref>
-{
-    static inline void check(buffer_handle_t hbuf)
-    {
-        if (nullptr == hbuf)
-            throw std::runtime_error("buffer_ref empty");
-    }
-};
-
-template<>
-struct buffer_handle<tag_obj>
-{
-    constexpr static inline void check(buffer_handle_t) noexcept
-    {   }
 };
 
 } // detail
 
-template<class R>
+template<class A>
 class basic_buffer;
 
-typedef basic_buffer<tag_ref> buffer_ref;
-typedef basic_buffer<tag_obj> buffer;
+using buffer_ref = basic_buffer<detail::ref_allocator>;
+using buffer = basic_buffer<detail::buf_allocator>;
 
-template<class R>
+template<class A>
 class basic_buffer
 {
-public:
-    typedef evbuffer* handle_t;
-    constexpr static bool is_ref = R::is_ref;
+    using this_type = basic_buffer<A>;
 
 private:
-    handle_t hbuf_{ detail::buffer_create<R>::create_handle() };
+    evbufer_ptr hbuf_{ A::allocate() };
 
-    handle_t assert_handle() const noexcept
+    auto assert_handle() const noexcept
     {
         auto hbuf = handle();
         assert(hbuf);
         return hbuf;
     }
 
-    basic_buffer& check_result(const char* what, int result)
-    {
-        assert(what);
-
-        if (result == code::fail)
-            throw std::runtime_error(what);
-
-        return *this;
-    }
-
-    template<class T>
-    std::size_t check_size(const char* what, T result) const
-    {
-        assert(what);
-
-        if (result == static_cast<T>(code::fail))
-            throw std::runtime_error(what);
-
-        return static_cast<std::size_t>(result);
-    }
-
 public:
-    basic_buffer()
-        : hbuf_(detail::buffer_create<R>::create_handle())
-    {   }
+    auto handle() const noexcept
+    {
+        return hbuf_;
+    }
+
+    operator evbufer_ptr() const noexcept
+    {
+        return handle();
+    }
+
+    operator buffer_ref() const noexcept
+    {
+        return ref();
+    }
+
+    buffer_ref ref() const noexcept
+    {
+        return buffer_ref(handle());
+    }
+
+    basic_buffer() = default;
 
     ~basic_buffer() noexcept
     {
-        detail::buffer_destroy<R>::destroy_handle(hbuf_);
+        A::free(handle());
+    }
+
+    // only for ref
+    // this delete copy ctor for buffer&
+    basic_buffer(const basic_buffer& other) noexcept
+        : hbuf_(other.handle())
+    {
+        // copy only for refs
+        static_assert(std::is_same<this_type, buffer_ref>::value);
+    }
+
+    // only for ref
+    // this delete copy ctor for buffer&
+    basic_buffer& operator=(const basic_buffer& other) noexcept
+    {
+        // copy only for refs
+        static_assert(std::is_same<this_type, buffer_ref>::value);
+        hbuf_ = other.handle();
+        return *this;
     }
 
     basic_buffer(basic_buffer&& that) noexcept
@@ -146,181 +125,146 @@ public:
         return *this;
     }
 
-    explicit basic_buffer(handle_t hbuf) noexcept
-        : hbuf_(hbuf)
+    explicit basic_buffer(evbufer_ptr ptr) noexcept
+        : hbuf_(ptr)
     {
-        assert(hbuf);
-        static_assert(is_ref, "buffer_ref only");
-    }
-
-    buffer_ref& operator=(handle_t hbuf) noexcept
-    {
-        assert(hbuf);
-        hbuf_ = hbuf;
-        return *this;
-    }
-
-    template<class T>
-    basic_buffer(const basic_buffer<T>& other) noexcept
-        : basic_buffer(other.handle())
-    {   }
-
-    template<class T>
-    buffer_ref& operator=(const basic_buffer<T>& other) noexcept
-    {
-        *this = other.hbuf_;
-        return *this;
-    }
-
-    handle_t handle() const noexcept
-    {
-        return hbuf_;
-    }
-
-    operator handle_t() const noexcept
-    {
-        return handle();
-    }
-
-    template<std::size_t N>
-    explicit basic_buffer(std::reference_wrapper<const char[N]> data_ref)
-    {
-        static_assert(!is_ref, "no buffer_ref");
-        append(std::move(data_ref));
-    }
-
-    template<class T>
-    explicit basic_buffer(std::reference_wrapper<const T> data_ref)
-    {
-        static_assert(!is_ref, "no buffer_ref");
-        append(std::move(data_ref));
-    }
-
-    template<class T>
-    explicit basic_buffer(const T& text)
-    {
-        static_assert(!is_ref, "no buffer_ref");
-        append(text);
-    }
-
-    basic_buffer(const void *data, std::size_t len)
-    {
-        static_assert(!is_ref, "no buffer_ref");
-        append(data, len);
+        static_assert(std::is_same<this_type, buffer_ref>::value);
+        assert(ptr);
     }
 
     void reset(buffer other)
     {
         *this = std::move(other);
-        //evbuffer_add_buffer(assert_handle(), other);
     }
 
-    basic_buffer& add_file(int fd, ev_off_t offset, ev_off_t length)
+    void add_file(int fd, ev_off_t offset, ev_off_t length)
     {
-        return check_result("evbuffer_add_file",
+        detail::check_result("evbuffer_add_file",
             evbuffer_add_file(assert_handle(), fd, offset, length));
     }
 
-    basic_buffer& append_ref(const void *data, std::size_t len,
+    void append_ref(const void *data, std::size_t len,
         evbuffer_ref_cleanup_cb cleanupfn, void *cleanupfn_arg)
     {
         assert(data && len);
-        return check_result("evbuffer_add_reference",
+        detail::check_result("evbuffer_add_reference",
             evbuffer_add_reference(assert_handle(), data, len,
                                    cleanupfn, cleanupfn_arg));
     }
 
-    basic_buffer& append_ref(const void *data, std::size_t len)
+    void append_ref(const void *data, std::size_t len)
     {
-        return append_ref(data, len, nullptr, nullptr);
+        append_ref(data, len, nullptr, nullptr);
     }
 
     template<std::size_t N>
-    basic_buffer& append_ref(std::reference_wrapper<const char[N]> data_ref)
+    void append_ref(std::reference_wrapper<const char[N]> data_ref)
     {
-        return append_ref(data_ref, N - 1);
+        append_ref(data_ref, N - 1);
     }
 
-    basic_buffer& append(buffer_ref) = delete;
-    basic_buffer& append(buffer buf)
+    template<template<class, class...>
+        class Str, class Ch, class ... R>
+    void append_ref(const Str<Ch, R...>& text)
     {
-        return check_result("evbuffer_add_buffer",
+        append_ref(text.data(), text.size());
+    }
+
+    template<template<class, std::size_t>
+        class Str, class Ch, std::size_t Sz>
+    void append_ref(const Str<Ch, Sz>& text)
+    {
+        append_ref(text.data(), text.size());
+    }
+
+    void append(buffer_ref) = delete;
+    void append(buffer buf)
+    {
+        detail::check_result("evbuffer_add_buffer",
             evbuffer_add_buffer(assert_handle(), buf));
     }
 
-    basic_buffer& append(const void *data, std::size_t len)
+    void append(const void *data, std::size_t len)
     {
         assert(data && len);
-        return check_result("evbuffer_add",
+        detail::check_result("evbuffer_add",
             evbuffer_add(assert_handle(), data, len));
     }
 
-    basic_buffer& append(const void *data, std::size_t len, bool ref)
+    void append(const void *data, std::size_t len, bool ref)
     {
-        return (ref) ?
+        (ref) ?
             append_ref(data, len) : append(data, len);
     }
 
     template<std::size_t N>
-    basic_buffer& append(const char(&data)[N])
+    void append(std::reference_wrapper<const char[N]> data_ref)
     {
-        return append(data, N - 1);
+        append_ref(data_ref.get(), N - 1);
     }
 
-    template<std::size_t N>
-    basic_buffer& append(std::reference_wrapper<const char[N]> data_ref)
+    template<template<class, class...>
+        class Str, class Ch, class ... R>
+    void append(const Str<Ch, R...>& text)
     {
-        return append_ref(data_ref.get(), N - 1);
+        append(text.data(), text.size());
+    }
+
+    template<template<class, std::size_t>
+        class Str, class Ch, std::size_t Sz>
+    void append(const Str<Ch, Sz>& text)
+    {
+        append(text.data(), text.size());
     }
 
     template<class T>
-    basic_buffer& append(const T& str_buf)
-    {
-        return append(str_buf.data(), str_buf.size());
-    }
-
-    template<class T>
-    basic_buffer& append(std::reference_wrapper<const T> data_ref)
+    void append(std::reference_wrapper<const T> data_ref)
     {
         const auto& str_buf = data_ref.get();
         append_ref(str_buf.data(), str_buf.size());
-        return *this;
     }
 
     // Prepends data to the beginning of the evbuffer
-    basic_buffer& prepend(buffer_ref) = delete;
-    basic_buffer& prepend(buffer buf)
+    void prepend(buffer_ref) = delete;
+    void prepend(buffer buf)
     {
-        return check_result("evbuffer_prepend_buffer",
+        detail::check_result("evbuffer_prepend_buffer",
             evbuffer_prepend_buffer(assert_handle(), buf));
     }
 
     // Prepends data to the beginning of the evbuffer
-    basic_buffer& prepend(const void *data, std::size_t len)
+    void prepend(const void *data, std::size_t len)
     {
         assert((nullptr != data) && len);
-        return check_result("evbuffer_prepend",
+        detail::check_result("evbuffer_prepend",
             evbuffer_prepend(assert_handle(), data, len));
     }
 
     // Prepends data to the beginning of the evbuffer
     template<std::size_t N>
-    basic_buffer& prepend(const char(&data)[N])
+    void prepend(std::reference_wrapper<const char[N]> data_ref)
     {
-        return prepend(data, N - 1);
+        prepend(data_ref.get(), N - 1);
     }
 
-    // Prepends data to the beginning of the evbuffer
-    template<class T>
-    basic_buffer& prepend(const T& str_buf)
+    template<template<class, class...>
+        class Str, class Ch, class ... R>
+    void prepend(const Str<Ch, R...>& text)
     {
-        return prepend(str_buf.data(), str_buf.size());
+        prepend(text.data(), text.size());
+    }
+
+    template<template<class, std::size_t>
+        class Str, class Ch, std::size_t Sz>
+    void prepend(const Str<Ch, Sz>& text)
+    {
+        prepend(text.data(), text.size());
     }
 
     // Remove a specified number of bytes data from the beginning of an evbuffer.
     std::size_t drain(std::size_t len)
     {
-        check_result("evbuffer_drain",
+        detail::check_result("evbuffer_drain",
             evbuffer_drain(assert_handle(), len));
         return size();
     }
@@ -340,9 +284,9 @@ public:
     // Expands the available space in the evbuffer to at least datlen,
     // so that appending datlen additional bytes
     // will not require any new allocations
-    basic_buffer& expand(std::size_t size)
+    void expand(std::size_t size)
     {
-        return check_result("evbuffer_expand",
+        detail::check_result("evbuffer_expand",
             evbuffer_expand(assert_handle(), size));
     }
 
@@ -355,23 +299,8 @@ public:
     std::size_t copyout(void *out, std::size_t len) const
     {
         assert(out && len);
-        return check_size("evbuffer_copyout",
+        return detail::check_size("evbuffer_copyout",
             evbuffer_copyout(assert_handle(), out, len));
-    }
-
-    // Read data from an evbuffer, and leave the buffer unchanged.
-    template<std::size_t N>
-    std::size_t copyout(char(&out)[N]) const
-    {
-        std::size_t result = copyout(out, N - 1);
-        out[result] = '\0';
-        return result;
-    }
-
-    std::size_t copyout(buffer& other)
-    {
-        return check_size("evbuffer_add_buffer",
-            evbuffer_add_buffer(other, assert_handle()));
     }
 
     // Makes the data at the beginning of an evbuffer contiguous.
@@ -407,9 +336,9 @@ public:
         return evbuffer_get_contiguous_space(assert_handle());
     }
 
-    basic_buffer& enable_locking()
+    void enable_locking()
     {
-        return check_result("evbuffer_enable_locking",
+        detail::check_result("evbuffer_enable_locking",
             evbuffer_enable_locking(assert_handle(), nullptr));
     }
 
@@ -463,17 +392,23 @@ public:
     std::size_t remove(void *out, std::size_t len) const
     {
         assert(out && len);
-        return check_size("evbuffer_remove",
+        return detail::check_size("evbuffer_remove",
             evbuffer_remove(assert_handle(), out, len));
     }
 
     // Read data from an evbuffer and drain the bytes read.
-    template<std::size_t N>
-    std::size_t remove(char(&out)[N]) const
+    std::size_t remove(basic_buffer& out, std::size_t len) const
     {
-        std::size_t result = remove(out, N - 1);
-        out[result] = '\0';
-        return result;
+        return detail::check_size("evbuffer_remove_buffer",
+            evbuffer_remove_buffer(assert_handle(), out, len));
+    }
+
+    // Read data from an evbuffer and drain the bytes read.
+    std::size_t remove(basic_buffer& out) const
+    {
+        auto len = size();
+        return (len) ?
+            remove(out, len) : len;
     }
 
     int peek(net::iov* vec_out, int n_vec) noexcept

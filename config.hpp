@@ -9,7 +9,7 @@ namespace btpro {
 class config
 {
 public:
-    typedef event_config* handle_t;
+    using handle_t = event_config*;
 
 private:
     static inline handle_t create()
@@ -36,23 +36,20 @@ public:
 
     void require_features(int value)
     {
-        auto res = event_config_require_features(handle(), value);
-        if (code::fail == res)
-            throw std::runtime_error("event_config_require_features");
+        detail::check_result("event_config_require_features",
+            event_config_require_features(handle(), value));
     }
 
     void avoid_method(const std::string& method)
     {
-        auto res = event_config_avoid_method(handle(), method.c_str());
-        if (code::fail == res)
-            throw std::runtime_error("event_config_avoid_method");
+        detail::check_result("event_config_avoid_method",
+            event_config_avoid_method(handle(), method.c_str()));
     }
 
     void set_flag(int flag)
     {
-        auto res = event_config_set_flag(handle(), flag);
-        if (code::fail == res)
-            throw std::runtime_error("event_config_set_flag");
+        detail::check_result("event_config_set_flag",
+            event_config_set_flag(handle(), flag));
     }
 
     static inline std::vector<std::string> supported_methods()

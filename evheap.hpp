@@ -45,7 +45,8 @@ public:
         create(queue, sock.fd(), ef, fn, arg);
     }
 
-    void create(queue_handle_t queue, event_flag_t ef, event_callback_fn fn, void *arg)
+    void create(queue_handle_t queue, event_flag_t ef,
+                event_callback_fn fn, void *arg)
     {
         create(queue, -1, ef, fn, arg);
     }

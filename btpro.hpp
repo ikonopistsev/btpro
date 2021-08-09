@@ -43,16 +43,25 @@ static inline void startup(unsigned char h = 2, unsigned char l = 2)
     static const net::launch launch(h, l);
 }
 
-struct tag_ref
-{
-    constexpr static bool is_ref = true;
-};
+namespace detail {
 
-struct tag_obj
+static inline void check_result(const char* what, int result)
 {
-    constexpr static bool is_ref = false;
-};
+    assert(what);
+    if (code::fail == result)
+        throw std::runtime_error(what);
+}
 
+template<class T>
+static std::size_t check_size(const char* what, T result)
+{
+    assert(what);
+    if (static_cast<T>(code::fail) == result)
+        throw std::runtime_error(what);
+    return static_cast<std::size_t>(result);
+}
+
+} // namespace detail
 } // namespace btpro
 
 namespace be = btpro;

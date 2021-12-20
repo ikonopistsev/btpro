@@ -57,19 +57,6 @@ public:
         event_.deallocate();
     }
 
-    template<class P>
-    void create(queue_handle_t queue, evutil_socket_t fd,
-                event_flag_t ef, evsfn<P>& ev)
-    {
-        event_.create(queue, fd, ef, proxy<evsfn<P>>::evsfncb, &ev);
-    }
-
-    template<class P>
-    void create(queue_handle_t queue, event_flag_t ef, evtfn<P>& ev)
-    {
-        event_.create(queue, -1, ef, proxy<evtfn<P>>::evtfncb, &ev);
-    }
-
     void create(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef,
         event_callback_fn fn, void *arg)
     {
@@ -79,13 +66,39 @@ public:
     void create(queue_handle_t queue, be::socket sock, event_flag_t ef,
         event_callback_fn fn, void *arg)
     {
-        event_.create(queue, sock, ef, fn, arg);
+        create(queue, sock.fd(), ef, fn, arg);
+    }
+
+    template<class P>
+    void create(queue_handle_t queue, evutil_socket_t fd,
+                event_flag_t ef, evsfn<P>& ev)
+    {
+        create(queue, fd, ef, proxy<evsfn<P>>::evsfncb, &ev);
+    }
+
+    template<class P>
+    void create(queue_handle_t queue, evutil_socket_t fd,
+                event_flag_t ef, evtfn<P>& ev)
+    {
+        create(queue, fd, ef, proxy<evtfn<P>>::evtfncb, &ev);
+    }
+
+    template<class F>
+    void create_timeout(queue_handle_t queue, F& ev)
+    {
+        create(queue, -1, EV_TIMEOUT, ev);
+    }
+
+    template<class F>
+    void create_interval(queue_handle_t queue, F& ev)
+    {
+        create(queue, -1, EV_TIMEOUT|EV_PERSIST, ev);
     }
 
     void create(queue_handle_t queue, event_flag_t ef,
                 event_callback_fn fn, void *arg)
     {
-        event_.create(queue, ef, fn, arg);
+        create(queue, -1, ef, fn, arg);
     }
 
     // конструктор для лямбды

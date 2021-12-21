@@ -44,6 +44,24 @@ class queue
 public:
     typedef queue_handle_t handle_t;
 
+    static auto create_event_base()
+    {
+        auto hqueue = event_base_new();
+        if (!hqueue)
+            throw std::runtime_error("event_base_new");
+
+        return hqueue;
+    }
+
+    static auto create_event_base(const config& conf)
+    {
+        auto hqueue = event_base_new_with_config(conf);
+        if (!hqueue)
+            throw std::runtime_error("event_base_new");
+
+        return hqueue;
+    }
+
 private:
     handle_t hqueue_{ nullptr };
 
@@ -61,7 +79,19 @@ private:
     }
 
 public:
-    queue() = default;
+    explicit queue(handle_t hqueue) noexcept
+        : hqueue_(hqueue)
+    {
+        assert(hqueue);
+    }
+
+    queue() 
+        : queue(create_event_base())
+    {   }
+
+    queue(const config& conf) 
+        : queue(create_event_base(conf))
+    {   }
 
     ~queue() noexcept
     {
@@ -101,28 +131,6 @@ public:
     bool empty() const noexcept
     {
         return nullptr == handle();
-    }
-
-    void create()
-    {
-        assert(empty());
-
-        auto hqueue = event_base_new();
-        if (!hqueue)
-            throw std::runtime_error("event_base_new");
-
-        hqueue_ = hqueue;
-    }
-
-    void create(const config& conf)
-    {
-        assert(empty());
-
-        auto hqueue = event_base_new_with_config(conf);
-        if (!hqueue)
-            throw std::runtime_error("event_base_new");
-
-        hqueue_ = hqueue;
     }
 
     void destroy() noexcept

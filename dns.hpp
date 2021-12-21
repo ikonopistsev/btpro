@@ -41,8 +41,30 @@ private:
         return hqueue;
     }
 
+    handle_t create(queue_handle_t hqueue, int opt = -1)
+    {
+        assert(hqueue);
+        assert(empty());
+
+        auto hdns = evdns_base_new(hqueue, opt);
+        if (!hdns)
+            throw std::runtime_error("evdns_base_new");
+
+        return hdns;
+        //randomize_case("0");
+    }
+
 public:
-    dns() = default;
+    explicit dns(handle_t hdns)
+        : hdns_{hdns}
+    {
+        assert(hdns);
+        randomize_case("0");
+    }
+
+    dns() 
+        : dns(create())
+    {   }
 
     ~dns() noexcept
     {
@@ -82,19 +104,6 @@ public:
     bool empty() const noexcept
     {
         return nullptr == handle();
-    }
-
-    void create(queue_handle_t hqueue, int opt = -1)
-    {
-        assert(hqueue);
-        assert(empty());
-
-        auto hdns = evdns_base_new(hqueue, opt);
-        if (!hdns)
-            throw std::runtime_error("evdns_base_new");
-
-        hdns_ = hdns;
-        randomize_case("0");
     }
 
     dns& set(const char *key, const char *val)

@@ -52,6 +52,25 @@ private:
 public:
     evcore() = default;
 
+    evcore(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef,
+        event_callback_fn fn, void *arg)
+    {
+        create(queue, fd, ef, fn, arg);
+    }
+
+    template<class P>
+    evcore(queue_handle_t queue, event_flag_t ef, evtfn<P>& ev)
+    {
+        create(queue, -1, ef, ev);
+    }
+
+    template<class P>
+    evcore(queue_handle_t queue, evutil_socket_t fd,
+                event_flag_t ef, evsfn<P>& ev)
+    {
+        create(queue, fd, ef, ev);
+    }
+
     ~evcore() noexcept
     {
         event_.deallocate();
@@ -163,7 +182,7 @@ public:
     // конструктор для лямбды
     template<class F>
     void create_then_add(queue_handle_t queue, event_flag_t ef,
-                         timeval* tv, F& fn)
+                         timeval tv, F& fn)
     {
         create(queue, ef, proxy<F>::evcb, &fn);
         add(tv);

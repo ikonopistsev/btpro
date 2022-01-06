@@ -221,14 +221,14 @@ public:
 
 static inline addr loopback() noexcept
 {
-    static const in6_addr in_addr = IN6ADDR_LOOPBACK_INIT;
+    static const in6_addr in_addr = { { IN6ADDR_LOOPBACK_INIT } };
     static const auto res = addr(in_addr);
     return res;
 }
 
 static inline addr loopback(int port) noexcept
 {
-    static const in6_addr in_addr = IN6ADDR_LOOPBACK_INIT;
+    static const in6_addr in_addr = { { IN6ADDR_LOOPBACK_INIT } };
     return addr(in_addr, port);
 }
 

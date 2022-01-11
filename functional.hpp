@@ -71,6 +71,10 @@ using timer_fun = std::function<void()>;
 using signal_fun = std::function<void(short)>;
 using socket_fun = std::function<void(btpro::socket, event_flag)>;
 
+using timer_ref = std::reference_wrapper<timer_fun>;
+using signal_ref = std::reference_wrapper<signal_fun>;
+using socket_ref = std::reference_wrapper<socket_fun>;
+
 template<class T>
 struct proxy;
 
@@ -127,7 +131,7 @@ struct proxy<timer_fun>
 };
 
 template<>
-struct proxy<std::reference_wrapper<timer_fun>>
+struct proxy<timer_ref>
 {
     static inline void call(evutil_socket_t, event_flag, void *arg)
     {
@@ -155,7 +159,7 @@ struct proxy<signal_fun>
 };
 
 template<>
-struct proxy<std::reference_wrapper<signal_fun>>
+struct proxy<signal_ref>
 {
     static inline void call(evutil_socket_t, event_flag ef, void *arg)
     {
@@ -183,7 +187,7 @@ struct proxy<socket_fun>
 };
 
 template<>
-struct proxy<std::reference_wrapper<socket_fun>>
+struct proxy<socket_ref>
 {
     static inline void call(evutil_socket_t fd, event_flag ef, void *arg)
     {

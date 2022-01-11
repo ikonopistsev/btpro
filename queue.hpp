@@ -3,7 +3,7 @@
 #include "btpro/config.hpp"
 #include "btpro/functional.hpp"
 #include <type_traits>
-#include <string_view>
+#include <string>
 
 namespace btpro {
 
@@ -91,16 +91,16 @@ public:
         hqueue_ = nullptr;
     }
 
-    std::string_view method() const noexcept
+    std::string method() const noexcept
     {
         auto res = event_base_get_method(assert_handle());
-        return res ? std::string_view(res) : std::string_view();
+        return res ? std::string(res) : std::string();
     }
 
-    static inline std::string_view version() noexcept
+    static inline std::string version() noexcept
     {
         auto res = event_get_version();
-        return (res) ? std::string_view(res) : std::string_view();
+        return (res) ? std::string(res) : std::string();
     }
 
     int features() const noexcept
@@ -191,36 +191,34 @@ public:
             event_base_once(assert_handle(), fd, ef, fn, arg, &tv));
     }
 
-// socket
+// --- socket
+// --- socket timeval
     template<class T>
     void once(btpro::socket sock, event_flag ef, timeval tv, socket_fn<T>& fn)
     {
-        once(sock.fd(), ef, tv, &btpro::proxy<socket_fn<T>>::call, &fn);
+        using fn_type = typename std::remove_reference<decltype(fn)>::type;
+        once(sock.fd(), ef, tv, &btpro::proxy<fn_type>::call, &fn);
     }
 
-    template<class Rep, class Period, class T>
-    void once(btpro::socket sock, event_flag ef,
-        std::chrono::duration<Rep, Period> timeout, socket_fn<T>& fn)
-    {
-        once(sock, ef, make_timeval(timeout), fn);
-    }
-
-    template<class T>
-    void once(btpro::socket sock, event_flag ef, socket_fn<T>& fn)
-    {
-        once(sock, ef, timeval{0, 0}, fn);
-    }
-
-    void once(btpro::socket sock, event_flag ef, timeval tv, socket_fun fn)
+    void once(btpro::socket sock, event_flag ef, 
+        timeval tv, socket_fun fn)
     {
         once(sock.fd(), ef, tv, &proxy<decltype(fn)>::call, 
             new socket_fun(std::move(fn)));
     }
 
-    void once(btpro::socket sock, event_flag ef, timeval tv, 
-        std::reference_wrapper<socket_fun> fn_ref)
+    void once(btpro::socket sock, event_flag ef, 
+        timeval tv, socket_ref fn_ref)
     {
         once(sock.fd(), ef, tv, &proxy<decltype(fn_ref)>::call, &fn_ref.get());
+    }
+
+// --- socket chrono
+    template<class Rep, class Period, class T>
+    void once(btpro::socket sock, event_flag ef,
+        std::chrono::duration<Rep, Period> timeout, socket_fn<T>& fn)
+    {
+        once(sock, ef, make_timeval(timeout), fn);
     }
 
     template<class Rep, class Period>
@@ -232,10 +230,16 @@ public:
 
     template<class Rep, class Period>
     void once(btpro::socket sock, event_flag ef,
-        std::chrono::duration<Rep, Period> timeout, 
-        std::reference_wrapper<socket_fun> fn_ref)
+        std::chrono::duration<Rep, Period> timeout, socket_ref fn_ref)
     {
         once(sock, ef, make_timeval(timeout), std::move(fn_ref));
+    }
+
+// --- socket immediately
+    template<class T>
+    void once(btpro::socket sock, event_flag ef, socket_fn<T>& fn)
+    {
+        once(sock, ef, timeval{0, 0}, fn);
     }
 
     void once(btpro::socket sock, event_flag ef, socket_fun fn)
@@ -243,31 +247,33 @@ public:
         once(sock, ef, timeval{0, 0}, std::move(fn));
     }
 
-    void once(btpro::socket sock, event_flag ef, 
-        std::reference_wrapper<socket_fun> fn_ref)
+    void once(btpro::socket sock, event_flag ef, socket_ref fn_ref)
     {
         once(sock, ef, timeval{0, 0}, std::move(fn_ref));
     }
 
+// --- socket requeue timeval
     void once(queue& queue, btpro::socket sock, 
         event_flag ef, timeval tv, socket_fun fn)
     {
-        once(sock.fd(), ef, tv, proxy<socket_fun>::call, 
-            new socket_fun([&, the_fn = std::move(fn)](btpro::socket s, event_flag e) {
+        once(sock, ef, tv, 
+            [&, the_fn = std::move(fn)] (btpro::socket s, event_flag e) {
                 try {
-                    queue.once([f = std::move(the_fn), s, e]{
+                    queue.once([&, f = std::move(the_fn), s, e]{
                         try {
                             f(s, e);
                         } 
-                        catch(...) 
-                        {   }            
+                        catch(...) {   
+                            queue.error(std::current_exception());
+                        }            
                     });
-                } 
-                catch(...) 
-                {   }            
-            }));
+                } catch(...) {
+                    error(std::current_exception());
+                }            
+            });
     }
 
+// --- socket requeue chrono
     template<class Rep, class Period>
     void once(queue& queue, btpro::socket sock, event_flag ef,
         std::chrono::duration<Rep, Period> timeout, socket_fun fn)
@@ -275,28 +281,19 @@ public:
         once(queue, sock, ef, make_timeval(timeout), std::move(fn));
     }
 
+// --- socket requeue immediately
     void once(queue& queue, btpro::socket sock, event_flag ef, socket_fun fn)
     {
         once(queue, sock, ef, timeval{0, 0}, std::move(fn));
     }
 
 // --- timer
+// --- timer timeval
     template<class T>
     void once(timeval tv, timer_fn<T>& fn)
     {
-        once(-1, EV_TIMEOUT, tv, btpro::proxy<timer_fn<T>>::call, &fn);
-    }
-
-    template<class Rep, class Period, class T>
-    void once(std::chrono::duration<Rep, Period> timeout, timer_fn<T>& fn)
-    {
-        once(make_timeval(timeout), fn);
-    }    
-
-    template<class T>
-    void once(timer_fn<T>& fn)
-    {
-        once(timeval{0, 0}, fn);
+        using fn_type = typename std::remove_reference<decltype(fn)>::type;
+        once(-1, EV_TIMEOUT, tv, btpro::proxy<fn_type>::call, &fn);
     }
 
     void once(timeval tv, timer_fun fn)
@@ -305,10 +302,17 @@ public:
             new timer_fun(std::move(fn)));
     }
 
-    void once(timeval tv, std::reference_wrapper<timer_fun> fn_ref)
+    void once(timeval tv, timer_ref fn_ref)
     {
         once(-1, EV_TIMEOUT, tv, proxy<decltype(fn_ref)>::call, &fn_ref.get());
     }
+
+// --- timer chrono
+    template<class Rep, class Period, class T>
+    void once(std::chrono::duration<Rep, Period> timeout, timer_fn<T>& fn)
+    {
+        once(make_timeval(timeout), fn);
+    }    
 
     template<class Rep, class Period>
     void once(std::chrono::duration<Rep, Period> timeout, timer_fun fn)
@@ -318,46 +322,54 @@ public:
 
     template<class Rep, class Period>
     void once(std::chrono::duration<Rep, Period> timeout, 
-        std::reference_wrapper<timer_fun> fn_ref)
+        timer_ref fn_ref)
     {
         once(make_timeval(timeout), std::move(fn_ref));
     }  
+
+// --- timer immediately
+    template<class T>
+    void once(timer_fn<T>& fn)
+    {
+        once(timeval{0, 0}, fn);
+    }
 
     void once(timer_fun fn)
     {
         once(timeval{0, 0}, std::move(fn));
     }
 
-    void once(std::reference_wrapper<timer_fun> fn_ref)
+    void once(timer_ref fn_ref)
     {
         once(timeval{0, 0}, std::move(fn_ref));
     }
 
+// --- timer requeue timeval
     void once(queue& queue, timeval tv, timer_fun fn)
     {
-        once(-1, EV_TIMEOUT, tv, proxy<timer_fun>::call, 
-            new timer_fun([&, the_fn = std::move(fn)]{
-                try {
-                    queue.once(std::move(the_fn));
-                }
-                catch(...)
-                {   }            
-            }));
+        once(tv, [&, the_fn = std::move(fn)]{
+            try {
+                queue.once(std::move(the_fn));
+            }
+            catch(...) {   
+                queue.error(std::current_exception());
+            }            
+        });
     }
 
-    void once(queue& queue, timeval tv, 
-        std::reference_wrapper<timer_fun> fn_ref)
+    void once(queue& queue, timeval tv, timer_ref fn_ref)
     {
-        once(-1, EV_TIMEOUT, tv, proxy<timer_fun>::call, 
-            new timer_fun([&, fn_ref]{
-                try {
-                    queue.once(fn_ref);
-                }
-                catch(...)
-                {   }            
-            }));
+        once(tv, [&, fn_ref]{
+            try {
+                queue.once(fn_ref);
+            }
+            catch(...) {   
+                queue.error(std::current_exception());
+            }            
+        });
     }
 
+// --- timer requeue chrono
     template<class Rep, class Period>
     void once(queue& queue, 
         std::chrono::duration<Rep, Period> timeout, timer_fun fn)
@@ -367,21 +379,24 @@ public:
 
     template<class Rep, class Period>
     void once(queue& queue, 
-        std::chrono::duration<Rep, Period> timeout, 
-        std::reference_wrapper<timer_fun> fn_ref)
+        std::chrono::duration<Rep, Period> timeout, timer_ref fn_ref)
     {
         once(queue, make_timeval(timeout), std::move(fn_ref));
     } 
 
+// --- timer requeue immediately
     void once(queue& queue, timer_fun fn)
     {
         once(queue, timeval{0, 0}, std::move(fn));
     }
 
-    void once(queue& queue, std::reference_wrapper<timer_fun> fn_ref)
+    void once(queue& queue, timer_ref fn_ref)
     {
         once(queue, timeval{0, 0}, std::move(fn_ref));
     }
+
+    void error(std::exception_ptr) const noexcept
+    {   }
 };
 
 } // namespace btpro

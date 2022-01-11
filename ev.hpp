@@ -47,6 +47,7 @@ namespace evs {
 
 template<class T>
 using timer_fn = detail::timer_fn<T, ev_stack>;
+
 using timer = detail::timer<ev_stack>;
 
 } // namespace evs
@@ -55,6 +56,7 @@ namespace evh {
 
 template<class T>
 using timer_fn = detail::timer_fn<T, ev_heap>;
+
 using timer = detail::timer<ev_heap>;
 
 } // namespace evh

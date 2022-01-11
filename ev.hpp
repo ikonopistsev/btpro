@@ -28,6 +28,8 @@ using timer_fn = detail::timer_fn<T, ev_stack>;
 
 using timer = detail::timer<ev_stack>;
 
+using type = ev_stack;
+
 } // namespace evs
 
 namespace evh {
@@ -36,6 +38,8 @@ template<class T>
 using timer_fn = detail::timer_fn<T, ev_heap>;
 
 using timer = detail::timer<ev_heap>;
+
+using type = ev_heap;
 
 } // namespace evh
 
@@ -145,6 +149,13 @@ public:
     bool pending(timeval& tv, event_flag events) const noexcept
     {
         return ev_.pending(tv, events);
+    }
+
+    template<class Rep, class Period>
+    void pending(std::chrono::duration<Rep, Period> timeout, 
+        event_flag events) noexcept
+    {
+        pending(make_timeval(timeout), events);
     }
 
     // Checks if a specific event is pending or scheduled

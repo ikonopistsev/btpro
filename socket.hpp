@@ -167,8 +167,24 @@ public:
                               flags, sa.sa(), &salen);
         if (res != code::fail)
             sa.resize(salen);
+
         return res;
     }
+
+    class holder
+    {
+        socket& socket_;
+
+    public:
+        holder(socket& socket) noexcept
+            : socket_(socket)
+        {   }
+
+        ~holder() noexcept
+        {
+            socket_.do_close();
+        }
+    };
 };
 
 } // namespace btpro

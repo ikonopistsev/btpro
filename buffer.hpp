@@ -32,10 +32,8 @@ struct buf_allocator
 {
     static auto allocate()
     {
-        auto ptr = evbuffer_new();
-        if (!ptr)
-            throw std::runtime_error("evbuffer_new");
-        return ptr;
+        return detail::check_pointer("evbuffer_new", 
+            evbuffer_new());
     }
 
     static void free(evbufer_ptr ptr) noexcept

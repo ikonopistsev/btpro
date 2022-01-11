@@ -1,218 +1,207 @@
 #pragma once
 
-#include "btpro/evheap.hpp"
-#include "btpro/evstack.hpp"
-#include "btpro/queue.hpp"
+#include "btpro/evtype.hpp"
 
 namespace btpro {
-
-template<class T>
-class evcore;
-
-typedef evcore<evheap> evh;
-typedef evcore<evstack> evs;
 
 template<class T>
 class evcore
 {
 public:
-    typedef T value_type;
+    using event_type = T;
 
 private:
-    template<class F>
-    struct proxy
+    event_type event_{};
+
+    auto assert_handle() const noexcept
     {
-        static inline void evcb(evutil_socket_t fd, short ef, void* arg)
-        {
-            assert(arg);
-            (*static_cast<F*>(arg))(fd, ef);
-        }
-
-        static inline void evsfncb(evutil_socket_t fd, short ef, void* arg)
-        {
-            assert(arg);
-            static_cast<evsfn<F>*>(arg)->call(fd, ef);
-        }
-
-        static inline void evtfncb(evutil_socket_t, short, void* arg)
-        {
-            assert(arg);
-            static_cast<evtfn<F>*>(arg)->call();
-        }
-    };
-
-    event_handle_t assert_handle() const noexcept
-    {
-        assert(!empty());
-        return handle();
+        auto h = event_.handle();
+        assert(h);
+        return h;
     }
-
-    value_type event_{};
 
 public:
     evcore() = default;
 
-    evcore(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef,
+// generic
+    evcore(queue_pointer queue, evutil_socket_t fd, event_flag ef,
         event_callback_fn fn, void *arg)
-    {
-        create(queue, fd, ef, fn, arg);
+        : event_{queue, fd, ef, fn, arg}
+    {   }
+
+    evcore(queue_pointer queue, evutil_socket_t fd, event_flag ef,
+        timeval tv, event_callback_fn fn, void *arg)
+        : event_{queue, fd, ef, fn, arg}
+    {   
+        add(tv);
     }
 
-    template<class P>
-    evcore(queue_handle_t queue, event_flag_t ef, evtfn<P>& ev)
-    {
-        create(queue, -1, ef, ev);
-    }
+// socket
+    template<class F>
+    evcore(queue_pointer queue, btpro::socket sock, event_flag ef, socket_fn<F>& fn)
+        : evcore{queue, sock.fd(), ef, proxy<socket_fn<F>>::call, &fn}
+    {   }
 
-    template<class P>
-    evcore(queue_handle_t queue, evutil_socket_t fd,
-                event_flag_t ef, evsfn<P>& ev)
-    {
-        create(queue, fd, ef, ev);
-    }
+    template<class F>
+    evcore(queue_pointer queue, btpro::socket sock, event_flag ef, timeval tv, socket_fn<F>& fn)
+        : evcore{queue, sock.fd(), ef, tv, proxy<socket_fn<F>>::call, &fn}
+    {   }
 
-    ~evcore() noexcept
-    {
-        event_.deallocate();
-    }
+    template<class F, class Rep, class Period>
+    evcore(queue_pointer queue, btpro::socket sock, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, socket_fn<F>& fn)
+        : evcore{queue, sock, ef, make_timeval(timeout), fn}
+    {   }
 
-    void create(queue_handle_t queue, evutil_socket_t fd, event_flag_t ef,
+    evcore(queue_pointer queue, btpro::socket sock, event_flag ef, socket_fun fn)
+        : evcore{queue, sock.fd(), ef, proxy<decltype(fn)>::call, 
+            new socket_fun{std::move(fn)}}
+    {   }
+
+    evcore(queue_pointer queue, btpro::socket sock, 
+        event_flag ef, std::reference_wrapper<socket_fun> fn)
+        : evcore{queue, sock.fd(), ef, proxy<socket_fun>::call, &fn.get()}
+    {   }
+
+    template<class Rep, class Period>
+    evcore(queue_pointer queue, btpro::socket sock, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, socket_fun fn)
+        : evcore{queue, sock.fd(), ef, make_timeval(timeout), 
+            proxy<decltype(fn)>::call, new socket_fun{std::move(fn)}}
+    {   }
+
+    template<class Rep, class Period>
+    evcore(queue_pointer queue, btpro::socket sock, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, 
+        std::reference_wrapper<socket_fun> fn)
+        : evcore{queue, sock.fd(), ef, make_timeval(timeout), 
+            proxy<decltype(fn)>::call, &fn.get()}
+    {   }
+
+// timer
+    template<class F>
+    evcore(queue_pointer queue, event_flag ef, timer_fn<F>& fn)
+        : evcore{queue, -1, ef, proxy<timer_fn<F>>::call, &fn}
+    {   }
+
+    template<class F>
+    evcore(queue_pointer queue, event_flag ef, timeval tv, timer_fn<F>& fn)
+        : evcore{queue, -1, ef, tv, proxy<timer_fn<F>>::call, &fn}
+    {   }
+
+    template<class F, class Rep, class Period>
+    evcore(queue_pointer queue, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, timer_fn<F>& fn)
+        : evcore{queue, ef, make_timeval(timeout), fn}
+    {   }
+
+    evcore(queue_pointer queue, event_flag ef, timer_fun fn)
+        : evcore{queue, -1, ef, proxy<decltype(fn)>::call, 
+            new timer_fun{std::move(fn)}}
+    {   }
+
+    evcore(queue_pointer queue, event_flag ef, std::reference_wrapper<timer_fun> fn)
+        : evcore{queue, -1, ef, proxy<decltype(fn)>::call, &fn.get()}
+    {   }
+
+    template<class Rep, class Period>
+    evcore(queue_pointer queue, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, timer_fun fn)
+        : evcore{queue, -1, ef, make_timeval(timeout), 
+            proxy<decltype(fn)>::call, new timer_fun{std::move(fn)}}
+    {   }
+
+    template<class Rep, class Period>
+    evcore(queue_pointer queue, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, 
+        std::reference_wrapper<timer_fun> fn)
+        : evcore{queue, -1, ef, make_timeval(timeout), 
+            proxy<decltype(fn)>::call, &fn.get()}
+    {   }
+
+// generic
+    void create(queue_pointer queue, evutil_socket_t fd, event_flag ef,
         event_callback_fn fn, void *arg)
     {
         event_.create(queue, fd, ef, fn, arg);
     }
-
-    void create(queue_handle_t queue, be::socket sock, event_flag_t ef,
-        event_callback_fn fn, void *arg)
-    {
-        create(queue, sock.fd(), ef, fn, arg);
-    }
-
-    template<class P>
-    void create(queue_handle_t queue, evutil_socket_t fd,
-                event_flag_t ef, evsfn<P>& ev)
-    {
-        create(queue, fd, ef, proxy<evsfn<P>>::evsfncb, &ev);
-    }
-
-    template<class P>
-    void create(queue_handle_t queue, evutil_socket_t fd,
-                event_flag_t ef, evtfn<P>& ev)
-    {
-        create(queue, fd, ef, proxy<evtfn<P>>::evtfncb, &ev);
-    }
-
+    
+// socket
     template<class F>
-    void create_timeout(queue_handle_t queue, F& ev)
+    void create(queue_pointer queue, btpro::socket sock, event_flag ef, socket_fn<F>& fn)
     {
-        create(queue, -1, EV_TIMEOUT, ev);
+        create(queue, sock.fd(), ef, proxy<socket_fn<F>>::call, &fn);
     }
 
+    void create(queue_pointer queue, btpro::socket sock, event_flag ef, socket_fun fn)
+    {
+        create(queue, sock.fd(), ef, proxy<decltype(fn)>::call, 
+            new socket_fun(std::move(fn)));
+    }
+
+    void create(queue_pointer queue, btpro::socket sock, 
+        event_flag ef, std::reference_wrapper<socket_fun> fn)
+    {
+        create(queue, sock.fd(), ef, proxy<socket_fun>::call, &fn.get()); 
+    }
+
+    void create(queue& queue, queue_pointer from_queue, btpro::socket sock, 
+        event_flag ef, socket_fun fn)
+    {
+        create(from_queue, sock.fd(), ef, proxy<decltype(fn)>::call, 
+            new socket_fun([&, the_fn = std::move(fn)](btpro::socket s, event_flag e) {
+                try {
+                    queue.once([f = std::move(the_fn), s, e]{
+                        try {
+                            f(s, e);
+                        } 
+                        catch(...) 
+                        {   }            
+                    });
+                } 
+                catch(...) 
+                {   }            
+            }));
+    }
+
+// timer
     template<class F>
-    void create_interval(queue_handle_t queue, F& ev)
+    void create(queue_pointer queue, event_flag ef, timer_fn<F>& fn)
     {
-        create(queue, -1, EV_TIMEOUT|EV_PERSIST, ev);
+        create(queue, -1, ef, proxy<timer_fn<F>>::call, &fn);
     }
 
-    void create(queue_handle_t queue, event_flag_t ef,
-                event_callback_fn fn, void *arg)
+    void create(queue_pointer queue, event_flag ef, timer_fun fn)
     {
-        create(queue, -1, ef, fn, arg);
+        create(queue, -1, ef, proxy<decltype(fn)>::call, 
+            new timer_fun(std::move(fn)));
     }
 
-    // конструктор для лямбды
-    // можно использовать с сигналами
-    template<class F>
-    void create(queue_handle_t queue, evutil_socket_t fd,
-                event_flag_t ef, F& fn)
+    void create(queue& queue, queue_pointer from_queue, 
+        event_flag ef, timer_fun fn)
     {
-        event_.create(queue, fd, ef, proxy<F>::evcb, &fn);
+        create(from_queue, -1, ef, proxy<decltype(fn)>::call, 
+            new timer_fun([&, the_fn = std::move(fn)]{
+                try {
+                    queue.once(std::move(the_fn));
+                }
+                catch(...)
+                {   }            
+            }));            
     }
 
-    template<class F>
-    void create(queue_handle_t queue, be::socket sock,
-                event_flag_t ef, F& fn)
-    {
-        event_.create(queue, sock, ef, proxy<F>::evcb, &fn);
-    }
-
-    // конструктор для лямбды
-    template<class F>
-    void create(queue_handle_t queue, event_flag_t ef, F& fn)
-    {
-        event_.create(queue, ef, proxy<F>::evcb, &fn);
-    }
-
-
-    template<class F>
-    void create_then_add(queue_handle_t queue, evutil_socket_t fd,
-                         event_flag_t ef, timeval* tv, F& fn)
-    {
-        create(queue, fd, ef, proxy<F>::evcb, &fn);
-        add(tv);
-    }
-
-    template<class F>
-    void create_then_add(queue_handle_t queue, be::socket sock,
-                         event_flag_t ef, timeval* tv, F& fn)
-    {
-        create(queue, sock, ef, proxy<F>::evcb, &fn);
-        add(tv);
-    }
-
-    template<class F, class Rep, class Period>
-    void create_then_add(queue_handle_t queue, evutil_socket_t fd,
-        event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
-    {
-        create(queue, fd, ef, proxy<F>::evcb, &fn);
-        add(timeout);
-    }
-
-    template<class F, class Rep, class Period>
-    void create_then_add(queue_handle_t queue, be::socket sock,
-        event_flag_t ef, std::chrono::duration<Rep, Period> timeout, F& fn)
-    {
-        create(queue, sock, ef, proxy<F>::evcb, &fn);
-        add(timeout);
-    }
-
-    // !!! это не выполнить на следующем цикле очереди
-    // это добавить без таймаута
-    // допустим вечное ожидание EV_READ или сигнала
-    // конструктор для лямбды
-    template<class F>
-    void create_then_add(queue_handle_t queue, event_flag_t ef,
-                         timeval tv, F& fn)
-    {
-        create(queue, ef, proxy<F>::evcb, &fn);
-        add(tv);
-    }
-
-    // конструктор для лямбды
-    template<class F>
-    void create_then_add(queue_handle_t queue, event_flag_t ef, F& fn)
-    {
-        create_then_add(queue, ef, nullptr, fn);
-    }
-
-    template<class F, class Rep, class Period>
-    void create_then_add(queue_handle_t queue, event_flag_t ef,
-                         std::chrono::duration<Rep, Period> timeout, F& fn)
-    {
-        create_then_add(queue, ef, make_timeval(timeout), fn);
-    }
-
+// api
     bool empty() const noexcept
     {
         return event_.empty();
     }
 
-    event_handle_t handle() const noexcept
+    auto handle() const noexcept
     {
         return event_.handle();
     }
 
-    operator event_handle_t() const noexcept
+    operator event_pointer() const noexcept
     {
         return handle();
     }
@@ -262,31 +251,22 @@ public:
         return *this;
     }
 
-    // Warning: This function is only useful for distinguishing a a zeroed-out
-    //   piece of memory from an initialized event, it can easily be confused by
-    //   uninitialized memory.  Thus, it should ONLY be used to distinguish an
-    //   initialized event from zero.
-    bool initialized() const noexcept
-    {
-        return !event_.empty();
-    }
-
     //    Checks if a specific event is pending or scheduled
     //    @param tv if this field is not NULL, and the event has a timeout,
     //           this field is set to hold the time at which the timeout will
     //       expire.
-    bool pending(timeval& tv, event_flag_t events) const noexcept
+    bool pending(timeval& tv, event_flag events) const noexcept
     {
         return event_pending(assert_handle(), events, &tv) != 0;
     }
 
     // Checks if a specific event is pending or scheduled
-    bool pending(event_flag_t events) const noexcept
+    bool pending(event_flag events) const noexcept
     {
         return event_pending(assert_handle(), events, nullptr) != 0;
     }
 
-    event_flag_t events() const noexcept
+    event_flag events() const noexcept
     {
         return event_get_events(assert_handle());
     }
@@ -297,12 +277,12 @@ public:
     }
 
     // хэндл очереди
-    queue_handle_t queue_handle() const noexcept
+    queue_pointer queue_handle() const noexcept
     {
         return event_get_base(assert_handle());
     }
 
-    operator queue_handle_t() const noexcept
+    operator queue_pointer() const noexcept
     {
         return queue_handle();
     }
@@ -318,7 +298,7 @@ public:
     }
 
     // выполнить обратный вызов напрямую
-    void exec(event_flag_t ef)
+    void exec(event_flag ef)
     {
         auto handle = assert_handle();
         auto fn = event_get_callback(handle);

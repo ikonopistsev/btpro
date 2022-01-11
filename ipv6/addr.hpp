@@ -221,14 +221,22 @@ public:
 
 static inline addr loopback() noexcept
 {
+#ifdef _WIN32    
     static const in6_addr in_addr = { { IN6ADDR_LOOPBACK_INIT } };
+#else
+    static const in6_addr in_addr = IN6ADDR_LOOPBACK_INIT;
+#endif 
     static const auto res = addr(in_addr);
     return res;
 }
 
 static inline addr loopback(int port) noexcept
 {
+#ifdef _WIN32        
     static const in6_addr in_addr = { { IN6ADDR_LOOPBACK_INIT } };
+#else
+    static const in6_addr in_addr = IN6ADDR_LOOPBACK_INIT;
+#endif 
     return addr(in_addr, port);
 }
 

@@ -25,13 +25,6 @@ public:
     using handle_t = dns_handle_t;
 
 private:
-
-    static inline void destroy(dns_handle_t value) noexcept
-    {
-        if (nullptr != value)
-            evdns_base_free(value, DNS_ERR_SHUTDOWN);
-    };
-
     handle_t hdns_{nullptr};
 
     handle_t assert_handle() const noexcept
@@ -39,19 +32,6 @@ private:
         auto hqueue = handle();
         assert(hqueue);
         return hqueue;
-    }
-
-    handle_t create(queue_handle_t hqueue, int opt = -1)
-    {
-        assert(hqueue);
-        assert(empty());
-
-        auto hdns = evdns_base_new(hqueue, opt);
-        if (!hdns)
-            throw std::runtime_error("evdns_base_new");
-
-        return hdns;
-        //randomize_case("0");
     }
 
 public:
@@ -62,13 +42,15 @@ public:
         randomize_case("0");
     }
 
-    dns() 
-        : dns(create())
+    dns(queue& queue, int opt = EVDNS_BASE_INITIALIZE_NAMESERVERS) 
+        : dns(detail::check_pointer("evdns_base_new", 
+            evdns_base_new(queue, opt)))
     {   }
 
     ~dns() noexcept
     {
-        destroy(hdns_);
+        if (hdns_)
+            evdns_base_free(hdns_, DNS_ERR_SHUTDOWN);
     }
 
     dns(dns&& that) noexcept

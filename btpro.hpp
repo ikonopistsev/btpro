@@ -19,12 +19,12 @@
 
 namespace btpro {
 
-typedef short event_flag_t;
-typedef event* event_handle_t;
-typedef event_base* queue_handle_t;
+using event_flag = short;
+using event_pointer = event*;
+using queue_pointer = event_base*;
 
 template<class Rep, class Period>
-static timeval make_timeval(std::chrono::duration<Rep, Period> timeout) noexcept
+timeval make_timeval(std::chrono::duration<Rep, Period> timeout) noexcept
 {
     const auto sec = std::chrono::duration_cast<
         std::chrono::seconds>(timeout);
@@ -52,8 +52,17 @@ static inline void check_result(const char* what, int result)
         throw std::runtime_error(what);
 }
 
+template<class P>
+P* check_pointer(const char* what, P* value)
+{
+    assert(what);
+    if (!value)
+        throw std::runtime_error(what);
+    return value;
+}
+
 template<class T>
-static std::size_t check_size(const char* what, T result)
+std::size_t check_size(const char* what, T result)
 {
     assert(what);
     if (static_cast<T>(code::fail) == result)

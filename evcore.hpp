@@ -23,6 +23,10 @@ private:
 
 public:
     evcore() = default;
+    evcore(evcore&&) = default;
+    evcore(const evcore&) = default;
+    evcore& operator=(evcore&&) = default;
+    evcore& operator=(const evcore&) = default;
 
 // generic
     evcore(queue_pointer queue, evutil_socket_t fd, event_flag ef,
@@ -266,16 +270,16 @@ public:
 
     // метод запускает эвент напрямую
     // те может привести к бесконечному вызову калбеков activate
+    // можно испольновать из разных потоков (при use_threads)
     void active(int res) noexcept
     {
         event_active(assert_handle(), res, 0);
     }
 
-    evcore& set_priority(int priority)
+    void set_priority(int priority)
     {
         detail::check_result("event_priority_set",
             event_priority_set(assert_handle(), priority));
-        return *this;
     }
 
     //    Checks if a specific event is pending or scheduled

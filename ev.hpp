@@ -6,29 +6,7 @@
 namespace btpro {
 
 template<class H, class E>
-class basic_ev;
-
-template<class H, class E>
-class basic_ev
-{
-    H handler_{};
-    E ev_{};
-
-public:
-    basic_ev() = default;
-
-    basic_ev(queue_pointer queue, event_flag ef, timeval tv, H handler)
-        : handler_{std::move(handler)}
-        , ev_{queue, ef, tv, handler_}
-    {   }
-
-    template<class Rep, class Period>
-    basic_ev(queue_pointer queue, event_flag ef, 
-        std::chrono::duration<Rep, Period> timeout, H handler)
-        : handler_{std::move(handler)}
-        , ev_{queue, ef, timeout, handler_}
-    {   }
-};
+class ev;
 
 using ev_heap = evcore<heap_event>;
 using ev_stack = evcore<stack_event>;
@@ -36,10 +14,10 @@ using ev_stack = evcore<stack_event>;
 namespace detail {
 
 template<class H, class E>
-using timer_fn = basic_ev<btpro::timer_fn<H>, E>;
+using timer_fn = ev<btpro::timer_fn<H>, E>;
 
 template<class T>
-using timer = basic_ev<btpro::timer_fun, T>;
+using timer = ev<btpro::timer_fun, T>;
 
 } // namespace ev
 
@@ -60,4 +38,125 @@ using timer_fn = detail::timer_fn<T, ev_heap>;
 using timer = detail::timer<ev_heap>;
 
 } // namespace evh
+
+template<class H, class E>
+class ev
+{
+    H handler_{};
+    E ev_{};
+
+public:
+    ev() = default;
+    ev(ev&&) = default;
+    ev(const ev&) = default;
+    ev& operator=(ev&&) = default;
+    ev& operator=(const ev&) = default;
+
+// --- socket
+    ev(queue_pointer queue, btpro::socket sock, 
+        event_flag ef, H handler)
+        : handler_{std::move(handler)}
+        , ev_{queue, sock, ef, handler_}
+    {   }
+
+    ev(queue_pointer queue, btpro::socket sock, 
+        event_flag ef, timeval tv, H handler)
+        : handler_{std::move(handler)}
+        , ev_{queue, sock, ef, tv, handler_}
+    {   }
+
+    template<class Rep, class Period>
+    ev(queue_pointer queue, btpro::socket sock, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, H handler)
+        : handler_{std::move(handler)}
+        , ev_{queue, sock, ef, timeout, handler_}
+    {   }
+
+// --- timer
+    ev(queue_pointer queue, event_flag ef, H handler)
+        : handler_{std::move(handler)}
+        , ev_{queue, ef, handler_}
+    {   }
+
+    ev(queue_pointer queue, event_flag ef, timeval tv, H handler)
+        : handler_{std::move(handler)}
+        , ev_{queue, ef, tv, handler_}
+    {   }
+
+    template<class Rep, class Period>
+    ev(queue_pointer queue, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, H handler)
+        : handler_{std::move(handler)}
+        , ev_{queue, ef, timeout, handler_}
+    {   }
+
+// api proxy from evcore
+    bool empty() const noexcept
+    {
+        return ev_.empty();
+    }
+
+    void destroy() noexcept
+    {
+        ev_.destroy();
+    }
+
+    // !!! это не выполнить на следующем цикле очереди
+    // это добавить без таймаута
+    // допустим вечное ожидание EV_READ или сигнала
+    void add(timeval* tv = nullptr)
+    {
+        ev_.add(tv);
+    }
+
+    void add(timeval tv)
+    {
+        ev_.add(tv);
+    }
+
+    template<class Rep, class Period>
+    void add(std::chrono::duration<Rep, Period> timeout)
+    {
+        ev_.add(timeout);
+    }
+
+    void remove()
+    {
+        ev_.remove();
+    }
+
+    // метод запускает эвент напрямую
+    // те может привести к бесконечному вызову калбеков activate
+    // можно испольновать из разных потоков (при use_threads)
+    void active(int res) noexcept
+    {
+        ev_.active(res);
+    }
+
+    void set_priority(int priority)
+    {
+        ev_.set_priority(priority);
+    }
+
+    //    Checks if a specific event is pending or scheduled
+    //    @param tv if this field is not NULL, and the event has a timeout,
+    //           this field is set to hold the time at which the timeout will
+    //       expire.
+    bool pending(timeval& tv, event_flag events) const noexcept
+    {
+        return ev_.pending(tv, events);
+    }
+
+    // Checks if a specific event is pending or scheduled
+    bool pending(event_flag events) const noexcept
+    {
+        return ev_.pending(events);
+    }
+
+    event_flag events() const noexcept
+    {
+        return ev_.events();
+    }
+};
+
 } // namespace btpro

@@ -182,7 +182,7 @@ public:
 
         ~holder() noexcept
         {
-            socket_.do_close();
+            socket_.close();
         }
     };
 };

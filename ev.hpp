@@ -14,20 +14,27 @@ using ev_stack = evcore<stack_event>;
 namespace detail {
 
 template<class H, class E>
-using timer_fn = ev<btpro::timer_fn<H>, E>;
+using timer_ev_fn = ev<btpro::timer_fn<H>, E>;
 
 template<class T>
-using timer = ev<btpro::timer_fun, T>;
+using timer_ev_fun = ev<btpro::timer_fun, T>;
+
+template<class H, class E>
+using socket_ev_fn = ev<btpro::socket_fn<H>, E>;
+
+template<class T>
+using socket_ev_fun = ev<btpro::socket_fun, T>;
 
 } // namespace ev
 
 namespace evs {
 
 template<class T>
-using timer_fn = detail::timer_fn<T, ev_stack>;
-
-using timer = detail::timer<ev_stack>;
-
+using timer_fn = detail::timer_ev_fn<T, ev_stack>;
+template<class T>
+using socket_fn = detail::socket_ev_fn<T, ev_stack>;
+using timer = detail::timer_ev_fun<ev_stack>;
+using socket = detail::socket_ev_fun<ev_stack>;
 using type = ev_stack;
 
 } // namespace evs
@@ -35,10 +42,11 @@ using type = ev_stack;
 namespace evh {
 
 template<class T>
-using timer_fn = detail::timer_fn<T, ev_heap>;
-
-using timer = detail::timer<ev_heap>;
-
+using timer_fn = detail::timer_ev_fn<T, ev_heap>;
+template<class T>
+using socket_fn = detail::socket_ev_fn<T, ev_heap>;
+using timer = detail::timer_ev_fun<ev_heap>;
+using socket = detail::socket_ev_fun<ev_heap>;
 using type = ev_heap;
 
 } // namespace evh

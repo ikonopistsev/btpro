@@ -5,8 +5,6 @@
 
 namespace btpro {
 
-class queue;
-
 template<class T>
 struct timer_fn
 {
@@ -16,31 +14,11 @@ struct timer_fn
     fn_type fn_{};
     T& self_;
 
-    void exec() noexcept
+    void call() noexcept
     {
         assert(fn_);
         try {
             (self_.*fn_)();
-        } 
-        catch (...)
-        {   }
-    }
-};
-
-template<class T>
-struct signal_fn
-{
-    using fn_type = void (T::*)(event_flag);
-    using self_type = T;
-
-    fn_type fn_{};
-    T& self_;
-
-    void call(event_flag ef) noexcept
-    {
-        assert(fn_);
-        try {
-            (self_.*fn_)(ef);
         } 
         catch (...)
         {   }
@@ -56,7 +34,7 @@ struct socket_fn
     fn_type fn_{};
     T& self_;
 
-    void call(btpro::socket sock, event_flag ef)
+    void call(btpro::socket sock, event_flag ef) noexcept
     {
         assert(fn_);
         try {
@@ -67,133 +45,160 @@ struct socket_fn
     }
 };
 
+template<class T>
+struct generic_fn
+{
+    using fn_type = void (T::*)(evutil_socket_t fd, event_flag ef);
+    using self_type = T;
+
+    fn_type fn_{};
+    T& self_;
+
+    void call(evutil_socket_t fd, event_flag ef) noexcept
+    {
+        assert(fn_);
+        try {
+            (self_.*fn_)(fd, ef);
+        } 
+        catch (...)
+        {   }
+    }
+};
+
+template<class T>
+constexpr auto proxy_call(timer_fn<T>& fn)
+{
+    return std::make_pair(&fn,
+        [](evutil_socket_t, event_flag, void *arg){
+            assert(arg);
+            try {
+                static_cast<timer_fn<T>*>(arg)->call();
+            }
+            catch (...)
+            {   }
+        });
+}
+
+template<class T>
+constexpr auto proxy_call(socket_fn<T>& fn)
+{
+    return std::make_pair(&fn,
+        [](evutil_socket_t fd, event_flag ef, void *arg){
+            assert(arg);
+            auto fn = static_cast<socket_fn<T>*>(arg);
+            try {
+                fn->call(btpro::socket(fd), ef);
+            }
+            catch (...)
+            {   }
+        });
+}
+
+template<class T>
+constexpr auto proxy_call(generic_fn<T>& fn)
+{
+    return std::make_pair(&fn,
+        [](evutil_socket_t fd, event_flag ef, void *arg){
+            assert(arg);
+            auto fn = static_cast<generic_fn<T>*>(arg);
+            try {
+                static_cast<generic_fn<T>*>(arg)->call(fd, ef);
+            }
+            catch (...)
+            {   }
+        });
+}
+
 using timer_fun = std::function<void()>;
-using signal_fun = std::function<void(short)>;
 using socket_fun = std::function<void(btpro::socket, event_flag)>;
+using generic_fun = 
+    std::function<void(evutil_socket_t fd, event_flag ef)>;
 
-using timer_ref = std::reference_wrapper<timer_fun>;
-using signal_ref = std::reference_wrapper<signal_fun>;
-using socket_ref = std::reference_wrapper<socket_fun>;
-
-template<class T>
-struct proxy;
-
-template<class T>
-struct proxy<timer_fn<T>>
+constexpr static inline auto proxy_call(timer_fun& fn)
 {
-    static inline void call(evutil_socket_t, 
-        event_flag, void *arg) noexcept
-    {
-        assert(arg);
-        static_cast<timer_fn<T>*>(arg)->exec();
-    } 
-};
+    return std::make_pair(&fn,
+        [](evutil_socket_t, event_flag, void *arg){
+            assert(arg);
+            auto fn = static_cast<timer_fun*>(arg);
+            try {
+                (*fn)();
+            }
+            catch (...)
+            {   }
+        });
+}
 
-
-template<class T>
-struct proxy<signal_fn<T>>
+static inline auto proxy_call(timer_fun&& fn)
 {
-    static inline void call(evutil_socket_t,
-        event_flag ef, void *arg) noexcept
-    {
-        assert(arg);
-        static_cast<signal_fn<T>*>(arg)->call(ef);
-    }
-};
+    return std::make_pair(new timer_fun{std::move(fn)},
+        [](evutil_socket_t, event_flag, void *arg){
+            assert(arg);
+            auto fn = static_cast<timer_fun*>(arg);
+            try {
+                (*fn)();
+            }
+            catch (...)
+            {   }
+            delete fn;
+        });
+}
 
-
-template<class T>
-struct proxy<socket_fn<T>>
+constexpr static inline auto proxy_call(socket_fun& fn)
 {
-    static inline void call(evutil_socket_t fd, event_flag ef, void *arg)
-    {
-        assert(arg);
-        static_cast<socket_fn<T>*>(arg)->call(btpro::socket(fd), ef);
-    }  
-};
+    return std::make_pair(&fn,
+        [](evutil_socket_t fd, event_flag ef, void *arg){
+            assert(arg);
+            auto fn = static_cast<socket_fun*>(arg);
+            try {
+                (*fn)(btpro::socket(fd), ef);
+            }
+            catch (...)
+            {   }
+        });
+}
 
-template<>
-struct proxy<timer_fun>
+static inline auto proxy_call(socket_fun&& fn)
 {
-    static inline void call(evutil_socket_t, event_flag, void* arg) noexcept
-    {
-        assert(arg);
-        auto fn = static_cast<timer_fun*>(arg);
+    return std::make_pair(new socket_fun{std::move(fn)},
+        [](evutil_socket_t fd, event_flag ef, void *arg){
+            assert(arg);
+            auto fn = static_cast<socket_fun*>(arg);
+            try {
+                (*fn)(btpro::socket(fd), ef);
+            }
+            catch (...)
+            {   }
+            delete fn;
+        });
+}
 
-        try {
-            (*fn)();
-        }
-        catch (...)
-        {   }
-
-        delete fn;
-    }
-};
-
-template<>
-struct proxy<timer_ref>
+constexpr static inline auto proxy_call(generic_fun& fn)
 {
-    static inline void call(evutil_socket_t, event_flag, void *arg)
-    {
-        assert(arg);
-        (*static_cast<timer_fun*>(arg))();
-    }
-};
+    return std::make_pair(&fn,
+        [](evutil_socket_t fd, event_flag ef, void *arg){
+            assert(arg);
+            auto fn = static_cast<generic_fun*>(arg);
+            try {
+                (*fn)(fd, ef);
+            }
+            catch (...)
+            {   }
+        });
+}
 
-template<>
-struct proxy<signal_fun>
+static inline auto proxy_call(generic_fun&& fn)
 {
-    static inline void call(evutil_socket_t, event_flag ef, void* arg) noexcept
-    {
-        assert(arg);
-        auto fn = static_cast<signal_fun*>(arg);
-
-        try {
-            (*fn)(ef);
-        }
-        catch (...)
-        {   }
-
-        delete fn;
-    }
-};
-
-template<>
-struct proxy<signal_ref>
-{
-    static inline void call(evutil_socket_t, event_flag ef, void *arg)
-    {
-        assert(arg);
-        (*static_cast<signal_fun*>(arg))(ef);
-    }
-};
-
-template<>
-struct proxy<socket_fun>
-{
-    static inline void call(evutil_socket_t fd, event_flag ef, void* arg) noexcept
-    {
-        assert(arg);
-        auto fn = static_cast<socket_fun*>(arg);
-
-        try {
-            (*fn)(btpro::socket(fd), ef);
-        }
-        catch (...)
-        {   }
-
-        delete fn;
-    }
-};
-
-template<>
-struct proxy<socket_ref>
-{
-    static inline void call(evutil_socket_t fd, event_flag ef, void *arg)
-    {
-        assert(arg);
-        (*static_cast<socket_fun*>(arg))(btpro::socket(fd), ef);
-    }
-};
+    return std::make_pair(new generic_fun{std::move(fn)},
+        [](evutil_socket_t fd, event_flag ef, void *arg){
+            assert(arg);
+            auto fn = static_cast<generic_fun*>(arg);
+            try {
+                (*fn)(fd, ef);
+            }
+            catch (...)
+            {   }
+            delete fn;
+        });
+}
 
 } // namespace btpro

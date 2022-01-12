@@ -183,7 +183,6 @@ public:
         return gettimeofday_cached();
     }
 
-//  generic wratpper
     void once(evutil_socket_t fd, event_flag ef, timeval tv,
         event_callback_fn fn, void *arg)
     {
@@ -191,212 +190,176 @@ public:
             event_base_once(assert_handle(), fd, ef, fn, arg, &tv));
     }
 
-// --- socket
-// --- socket timeval
     template<class T>
-    void once(btpro::socket sock, event_flag ef, timeval tv, socket_fn<T>& fn)
+    void once(evutil_socket_t fd, event_flag ef, timeval tv, T&& fn)
     {
-        using fn_type = typename std::remove_reference<decltype(fn)>::type;
-        once(sock.fd(), ef, tv, &btpro::proxy<fn_type>::call, &fn);
+        auto p = proxy_call(std::forward<T>(fn));
+        once(fd, ef, tv, p.second, p.first);
     }
 
-    void once(btpro::socket sock, event_flag ef, 
-        timeval tv, socket_fun fn)
+    template<class T, class Rep, class Period>
+    void once(evutil_socket_t fd, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, T&& fn)
     {
-        once(sock.fd(), ef, tv, &proxy<decltype(fn)>::call, 
-            new socket_fun(std::move(fn)));
+        once(fd, ef, make_timeval(timeout), std::forward<T>(fn));
     }
 
-    void once(btpro::socket sock, event_flag ef, 
-        timeval tv, socket_ref fn_ref)
-    {
-        once(sock.fd(), ef, tv, &proxy<decltype(fn_ref)>::call, &fn_ref.get());
-    }
-
-// --- socket chrono
-    template<class Rep, class Period, class T>
-    void once(btpro::socket sock, event_flag ef,
-        std::chrono::duration<Rep, Period> timeout, socket_fn<T>& fn)
-    {
-        once(sock, ef, make_timeval(timeout), fn);
-    }
-
-    template<class Rep, class Period>
-    void once(btpro::socket sock, event_flag ef,
-        std::chrono::duration<Rep, Period> timeout, socket_fun fn)
-    {
-        once(sock, ef, make_timeval(timeout), std::move(fn));
-    }
-
-    template<class Rep, class Period>
-    void once(btpro::socket sock, event_flag ef,
-        std::chrono::duration<Rep, Period> timeout, socket_ref fn_ref)
-    {
-        once(sock, ef, make_timeval(timeout), std::move(fn_ref));
-    }
-
-// --- socket immediately
     template<class T>
-    void once(btpro::socket sock, event_flag ef, socket_fn<T>& fn)
+    void once(btpro::socket sock, event_flag ef, timeval tv, T&& fn)
     {
-        once(sock, ef, timeval{0, 0}, fn);
+        once(sock.fd(), ef, tv, std::forward<T>(fn));
     }
 
-    void once(btpro::socket sock, event_flag ef, socket_fun fn)
+    template<class T, class Rep, class Period>
+    void once(btpro::socket sock, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, T&& fn)
     {
-        once(sock, ef, timeval{0, 0}, std::move(fn));
+        once(sock.fd(), ef, timeout, std::forward<T>(fn));
     }
 
-    void once(btpro::socket sock, event_flag ef, socket_ref fn_ref)
+    template<class T>
+    void once(timeval tv, T&& fn)
     {
-        once(sock, ef, timeval{0, 0}, std::move(fn_ref));
+        once(-1, EV_TIMEOUT, tv, std::forward<T>(fn));
     }
 
-// --- socket requeue timeval
-    void once(queue& queue, btpro::socket sock, 
-        event_flag ef, timeval tv, socket_fun fn)
+    template<class T, class Rep, class Period>
+    void once(std::chrono::duration<Rep, Period> timeout, T&& fn)
+    {
+        once(-1, EV_TIMEOUT, timeout, std::forward<T>(fn));
+    }
+
+    template<class T>
+    void once(T&& fn)
+    {
+        once(-1, EV_TIMEOUT, timeval{}, std::forward<T>(fn));
+    }
+
+    template<class T>
+    void once(queue& other, timeval tv, T&& fn)
+    {
+        once(tv, timer_requeue(other, std::forward<T>(fn)));
+
+    }
+
+    template<class T, class Rep, class Period>
+    void once(queue& other, 
+        std::chrono::duration<Rep, Period> timeout, T&& fn)
+    {
+        once(timeout, timer_requeue(other, std::forward<T>(fn)));
+    }
+
+    template<class T>
+    void once(queue& other, T&& fn)
+    {
+        once(timeval{}, timer_requeue(other, std::forward<T>(fn)));
+    }
+
+    template<class T>
+    void once(queue& other, btpro::socket sock, 
+        event_flag ef, timeval tv, T&& fn)
     {
         once(sock, ef, tv, 
-            [&, the_fn = std::move(fn)] (btpro::socket s, event_flag e) {
-                try {
-                    queue.once([&, f = std::move(the_fn), s, e]{
-                        try {
-                            f(s, e);
-                        } 
-                        catch(...) {   
-                            queue.error(std::current_exception());
-                        }            
-                    });
-                } catch(...) {
-                    error(std::current_exception());
-                }            
-            });
+            socket_requeue(other, std::forward<T>(fn)));
     }
 
-// --- socket requeue chrono
-    template<class Rep, class Period>
-    void once(queue& queue, btpro::socket sock, event_flag ef,
-        std::chrono::duration<Rep, Period> timeout, socket_fun fn)
+    template<class T, class Rep, class Period>
+    void once(queue& other, btpro::socket sock, event_flag ef, 
+        std::chrono::duration<Rep, Period> timeout, T&& fn)
     {
-        once(queue, sock, ef, make_timeval(timeout), std::move(fn));
+        once(sock, ef, timeout,
+            socket_requeue(other, std::forward<T>(fn)));
     }
 
-// --- socket requeue immediately
-    void once(queue& queue, btpro::socket sock, event_flag ef, socket_fun fn)
-    {
-        once(queue, sock, ef, timeval{0, 0}, std::move(fn));
-    }
-
-// --- timer
-// --- timer timeval
     template<class T>
-    void once(timeval tv, timer_fn<T>& fn)
+    void once(queue& other, btpro::socket sock, 
+        event_flag ef, T&& fn)
     {
-        using fn_type = typename std::remove_reference<decltype(fn)>::type;
-        once(-1, EV_TIMEOUT, tv, btpro::proxy<fn_type>::call, &fn);
+        once(sock, ef, timeval{}, 
+            socket_requeue(other, std::forward<T>(fn)));
     }
 
-    void once(timeval tv, timer_fun fn)
-    {
-        once(-1, EV_TIMEOUT, tv, proxy<decltype(fn)>::call, 
-            new timer_fun(std::move(fn)));
-    }
-
-    void once(timeval tv, timer_ref fn_ref)
-    {
-        once(-1, EV_TIMEOUT, tv, proxy<decltype(fn_ref)>::call, &fn_ref.get());
-    }
-
-// --- timer chrono
-    template<class Rep, class Period, class T>
-    void once(std::chrono::duration<Rep, Period> timeout, timer_fn<T>& fn)
-    {
-        once(make_timeval(timeout), fn);
-    }    
-
-    template<class Rep, class Period>
-    void once(std::chrono::duration<Rep, Period> timeout, timer_fun fn)
-    {
-        once(make_timeval(timeout), std::move(fn));
-    }
-
-    template<class Rep, class Period>
-    void once(std::chrono::duration<Rep, Period> timeout, 
-        timer_ref fn_ref)
-    {
-        once(make_timeval(timeout), std::move(fn_ref));
-    }  
-
-// --- timer immediately
     template<class T>
-    void once(timer_fn<T>& fn)
+    void once(queue& other, evutil_socket_t fd, 
+        event_flag ef, timeval tv, T&& fn)
     {
-        once(timeval{0, 0}, fn);
+        once(fd, ef, tv, 
+            generic_requeue(other, std::forward<T>(fn)));
     }
 
-    void once(timer_fun fn)
+    template<class T, class Rep, class Period>
+    void once(queue& other, evutil_socket_t the_fd, event_flag the_ef, 
+        std::chrono::duration<Rep, Period> timeout, T&& fn)
     {
-        once(timeval{0, 0}, std::move(fn));
+        once(the_fd, the_ef, timeout,
+            generic_requeue(other, std::forward<T>(fn)));
     }
 
-    void once(timer_ref fn_ref)
+    template<class T>
+    void once(queue& other, evutil_socket_t fd, 
+        event_flag ef, T&& fn)
     {
-        once(timeval{0, 0}, std::move(fn_ref));
-    }
-
-// --- timer requeue timeval
-    void once(queue& queue, timeval tv, timer_fun fn)
-    {
-        once(tv, [&, the_fn = std::move(fn)]{
-            try {
-                queue.once(std::move(the_fn));
-            }
-            catch(...) {   
-                queue.error(std::current_exception());
-            }            
-        });
-    }
-
-    void once(queue& queue, timeval tv, timer_ref fn_ref)
-    {
-        once(tv, [&, fn_ref]{
-            try {
-                queue.once(fn_ref);
-            }
-            catch(...) {   
-                queue.error(std::current_exception());
-            }            
-        });
-    }
-
-// --- timer requeue chrono
-    template<class Rep, class Period>
-    void once(queue& queue, 
-        std::chrono::duration<Rep, Period> timeout, timer_fun fn)
-    {
-        once(queue, make_timeval(timeout), std::move(fn));
-    }
-
-    template<class Rep, class Period>
-    void once(queue& queue, 
-        std::chrono::duration<Rep, Period> timeout, timer_ref fn_ref)
-    {
-        once(queue, make_timeval(timeout), std::move(fn_ref));
-    } 
-
-// --- timer requeue immediately
-    void once(queue& queue, timer_fun fn)
-    {
-        once(queue, timeval{0, 0}, std::move(fn));
-    }
-
-    void once(queue& queue, timer_ref fn_ref)
-    {
-        once(queue, timeval{0, 0}, std::move(fn_ref));
+        once(fd, ef, timeval{}, 
+            generic_requeue(other, std::forward<T>(fn)));
     }
 
     void error(std::exception_ptr) const noexcept
     {   }
+
+private:
+    template<class T>
+    auto timer_requeue(queue& queue, T&& fn)
+    {
+        return [&]{
+            try {
+                queue.once([&, f = std::forward<T>(fn)]{
+                    try {
+                        f();
+                    } catch (...) {
+                        queue.error(std::current_exception());
+                    }
+                });
+            } catch (...) {
+                error(std::current_exception());
+            }
+        };
+    }
+
+    template<class T>
+    auto socket_requeue(queue& queue, T&& fn)
+    {
+        return [&](btpro::socket sock, event_flag ef){
+            try {
+                queue.once([&, sock, ef, f = std::forward<T>(fn)]{
+                    try {
+                        f(sock, ef);
+                    } catch (...) {
+                        queue.error(std::current_exception());
+                    }
+                });
+            } catch (...) {
+                error(std::current_exception());
+            }
+        };
+    }
+
+    template<class T>
+    auto generic_requeue(queue& queue, T&& fn)
+    {
+        return [&](evutil_socket_t fd, event_flag ef){
+            try {
+                queue.once([&, fd, ef, f = std::forward<T>(fn)]{
+                    try {
+                        f(fd, ef);
+                    } catch (...) {
+                        queue.error(std::current_exception());
+                    }
+                });
+            } catch (...) {
+                error(std::current_exception());
+            }
+        };
+    }
 };
 
 } // namespace btpro

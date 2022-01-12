@@ -12,9 +12,6 @@
 
 namespace btpro {
 
-template<class T>
-class bevfn;
-
 class buffer_event
 {
 public:
@@ -31,12 +28,12 @@ private:
         return hbev;
     }
 
-    handle_type output_handle() const noexcept
+    auto output_handle() const noexcept
     {
         return bufferevent_get_output(assert_handle());
     }
 
-    handle_type input_handle() const noexcept
+    auto input_handle() const noexcept
     {
         return bufferevent_get_input(assert_handle());
     }
@@ -53,7 +50,7 @@ public:
     buffer_event(const buffer_event&) = delete;
     buffer_event& operator=(const buffer_event&) = delete;
 
-    buffer_event(bev&& other) noexcept
+    buffer_event(buffer_event&& other) noexcept
     {
         std::swap(hbev_, other.hbev_);
     }
@@ -222,7 +219,7 @@ public:
     template<typename F>
     void sync(F fn)
     {
-        std::lock_guard<bev> l(*this);
+        std::lock_guard<buffer_event> l(*this);
         fn(*this);
     }
 
@@ -281,7 +278,6 @@ public:
 
         // копируем каллбек
         auto fn_ptr = new std::function<void()>(std::move(fn));
-        // выделяем память под буфер
 
         detail::check_result("evbuffer_add_reference",
             evbuffer_add_reference(output_handle(), data, size,
@@ -296,11 +292,10 @@ public:
         // копируем каллбек
         auto fn_ptr = new std::function<void()>(std::move(fn));
         // выделяем память под буфер
-        auto ptr = detail::check_pointer("write/malloc", 
-            malloc(size));
+        auto ptr = detail::check_pointer("write/malloc", std::malloc(size));
 
         // копируем память
-        memcpy(ptr, data, size);
+        std::memcpy(ptr, data, size);
 
         detail::check_result("evbuffer_add_reference",
             evbuffer_add_reference(output_handle(), ptr, size,
@@ -351,12 +346,6 @@ public:
     void set_timeout(timeval *timeout_read, timeval *timeout_write)
     {
         bufferevent_set_timeouts(assert_handle(), timeout_read, timeout_write);
-    }
-
-    template<class T>
-    void set(bevfn<T>& val)
-    {
-        val.apply(*this);
     }
 };
 

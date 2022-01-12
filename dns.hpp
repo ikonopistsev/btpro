@@ -23,6 +23,8 @@ class dns
 {
 public:
     using handle_t = dns_handle_t;
+    constexpr static int def_opt =
+        { EVDNS_BASE_INITIALIZE_NAMESERVERS|EVDNS_BASE_DISABLE_WHEN_INACTIVE };
 
 private:
     handle_t hdns_{nullptr};
@@ -42,7 +44,7 @@ public:
         randomize_case("0");
     }
 
-    dns(queue& queue, int opt = EVDNS_BASE_INITIALIZE_NAMESERVERS) 
+    dns(queue& queue, int opt = def_opt) 
         : dns(detail::check_pointer("evdns_base_new", 
             evdns_base_new(queue, opt)))
     {   }

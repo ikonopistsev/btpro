@@ -100,7 +100,6 @@ constexpr auto proxy_call(generic_fn<T>& fn)
     return std::make_pair(&fn,
         [](evutil_socket_t fd, event_flag ef, void *arg){
             assert(arg);
-            auto fn = static_cast<generic_fn<T>*>(arg);
             try {
                 static_cast<generic_fn<T>*>(arg)->call(fd, ef);
             }

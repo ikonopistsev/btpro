@@ -235,17 +235,13 @@ private:
     {
         static void clean_fn(const void*, size_t, void* extra) noexcept
         {
-            assert(extra);
-            
+            assert(extra);          
             auto fn = static_cast<F*>(extra);
-
-            try
-            {
+            try {
                 (*fn)();
             }
             catch (...)
             {    }
-
             delete fn;
         }
 
@@ -253,18 +249,13 @@ private:
         {
             assert(data);
             assert(extra);
-
-            free(const_cast<void*>(data));
-
+            std::free(const_cast<void*>(data));
             auto fn = static_cast<F*>(extra);
-
-            try
-            {
+            try {
                 (*fn)();
             }
             catch (...)
             {   }
-
             delete fn;
         }
     };
@@ -275,10 +266,8 @@ public:
     void write_ref(const void* data, std::size_t size, F fn)
     {
         assert(data);
-
         // копируем каллбек
         auto fn_ptr = new std::function<void()>(std::move(fn));
-
         detail::check_result("evbuffer_add_reference",
             evbuffer_add_reference(output_handle(), data, size,
                 ref_buffer<std::function<void()>>::clean_fn, fn_ptr));
@@ -288,15 +277,12 @@ public:
     void write(const void* data, std::size_t size, F fn)
     {
         assert(data);
-
         // копируем каллбек
         auto fn_ptr = new std::function<void()>(std::move(fn));
         // выделяем память под буфер
         auto ptr = detail::check_pointer("write/malloc", std::malloc(size));
-
         // копируем память
         std::memcpy(ptr, data, size);
-
         detail::check_result("evbuffer_add_reference",
             evbuffer_add_reference(output_handle(), ptr, size,
                 ref_buffer<std::function<void()>>::clean_fn_all, fn_ptr));

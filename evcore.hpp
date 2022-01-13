@@ -91,18 +91,18 @@ public:
 
     template<class F>
     evcore(queue_pointer queue, event_flag ef, F& fn)
-        : evcore{queue, -1, ef|EV_TIMEOUT, fn}
+        : evcore{queue, -1, ef, fn}
     {   }  
 
     template<class F>
     evcore(queue_pointer queue, event_flag ef, timeval tv, F& fn)
-        : evcore{queue, -1, ef|EV_TIMEOUT, tv, fn}
+        : evcore{queue, -1, ef, tv, fn}
     {   }
 
     template<class F, class Rep, class Period>
     evcore(queue_pointer queue, event_flag ef, 
         std::chrono::duration<Rep, Period> timeout, F& fn)
-        : evcore{queue, -1, ef|EV_TIMEOUT, timeout, fn}
+        : evcore{queue, ef, make_timeval(timeout), fn}
     {   } 
 
     template<class F>

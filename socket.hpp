@@ -171,16 +171,18 @@ public:
         return res;
     }
 
-    class holder
+    class guard
     {
         socket& socket_;
 
     public:
-        holder(socket& socket) noexcept
+        guard(const guard&) = delete;
+
+        explicit guard(socket& socket) noexcept
             : socket_(socket)
         {   }
 
-        ~holder() noexcept
+        ~guard() noexcept
         {
             socket_.close();
         }

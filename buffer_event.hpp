@@ -102,12 +102,12 @@ public:
         }
     }
 
-    buffer_ref input() const noexcept
+    auto input() const noexcept
     {
         return buffer_ref(input_handle());
     }
 
-    buffer_ref output() const noexcept
+    auto output() const noexcept
     {
         return buffer_ref(output_handle());
     }
@@ -165,7 +165,7 @@ public:
 
     operator handle_type() const noexcept
     {
-        return  handle();
+        return handle();
     }
 
     evutil_socket_t fd() const noexcept
@@ -227,65 +227,6 @@ public:
     {
         detail::check_result("bufferevent_write",
             bufferevent_write(assert_handle(), data, size));
-    }
-
-private:
-    template<class F>
-    struct ref_buffer
-    {
-        static void clean_fn(const void*, size_t, void* extra) noexcept
-        {
-            assert(extra);          
-            auto fn = static_cast<F*>(extra);
-            try {
-                (*fn)();
-            }
-            catch (...)
-            {    }
-            delete fn;
-        }
-
-        static void clean_fn_all(const void* data, size_t, void* extra) noexcept
-        {
-            assert(data);
-            assert(extra);
-            std::free(const_cast<void*>(data));
-            auto fn = static_cast<F*>(extra);
-            try {
-                (*fn)();
-            }
-            catch (...)
-            {   }
-            delete fn;
-        }
-    };
-
-
-public:
-    template<class F>
-    void write_ref(const void* data, std::size_t size, F fn)
-    {
-        assert(data);
-        // копируем каллбек
-        auto fn_ptr = new std::function<void()>(std::move(fn));
-        detail::check_result("evbuffer_add_reference",
-            evbuffer_add_reference(output_handle(), data, size,
-                ref_buffer<std::function<void()>>::clean_fn, fn_ptr));
-    }
-
-    template<class F>
-    void write(const void* data, std::size_t size, F fn)
-    {
-        assert(data);
-        // копируем каллбек
-        auto fn_ptr = new std::function<void()>(std::move(fn));
-        // выделяем память под буфер
-        auto ptr = detail::check_pointer("write/malloc", std::malloc(size));
-        // копируем память
-        std::memcpy(ptr, data, size);
-        detail::check_result("evbuffer_add_reference",
-            evbuffer_add_reference(output_handle(), ptr, size,
-                ref_buffer<std::function<void()>>::clean_fn_all, fn_ptr));
     }
 
     template<class Ref>

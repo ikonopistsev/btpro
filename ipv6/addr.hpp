@@ -1,7 +1,6 @@
 #pragma once
 
 #include "btpro/ip/addr.hpp"
-#include "btdef/string.hpp"
 #include "btdef/text.hpp"
 
 namespace btpro {

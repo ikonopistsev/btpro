@@ -74,6 +74,11 @@ public:
         assert(c);
     }
 
+    void close()
+    {
+        listener_.close();
+    }
+
     acceptorfn& listen(queue_handle_t queue,
         unsigned int flags, const ip::addr& sa, int backlog)
     {

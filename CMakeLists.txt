@@ -11,4 +11,4 @@ endif()
 
 add_library(btpro INTERFACE)
 
-target_include_directories(btdef INTERFACE include/)
+target_include_directories(btpro INTERFACE include/)

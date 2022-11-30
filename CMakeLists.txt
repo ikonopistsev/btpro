@@ -9,6 +9,6 @@ if (WIN32)
   add_definitions(-DNOMINMAX)
 endif()
 
-add_library(btpro INTERFACE)
+add_library(btpro INTERFACE include/)
 
 target_include_directories(btpro INTERFACE include/)

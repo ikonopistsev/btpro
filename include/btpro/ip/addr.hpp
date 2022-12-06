@@ -77,9 +77,9 @@ public:
         return sockaddr_;
     }
 
-    int compare(const addr& other) const noexcept
+    auto operator<=>(const addr& other) const noexcept
     {
-        int r = static_cast<int>(family()) - static_cast<int>(other.family());
+        auto r = static_cast<int>(family()) - static_cast<int>(other.family());
         if (!r)
         {
             std::size_t sz = static_cast<std::size_t>(size());
@@ -89,21 +89,6 @@ public:
             return s;
         }
         return r;
-    }
-
-    bool operator<(const addr& other) const noexcept
-    {
-        return compare(other) < 0;
-    }
-
-    bool operator==(const addr& other) const noexcept
-    {
-        return compare(other) == 0;
-    }
-
-    bool operator!=(const addr& other) const noexcept
-    {
-        return !(*this == other);
     }
 };
 

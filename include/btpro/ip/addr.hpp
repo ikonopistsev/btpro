@@ -77,6 +77,7 @@ public:
         return sockaddr_;
     }
 
+/*
     auto operator<=>(const addr& other) const noexcept
     {
         auto r = static_cast<int>(family()) - static_cast<int>(other.family());
@@ -90,6 +91,7 @@ public:
         }
         return r;
     }
+*/
 };
 
 } // namespace ip

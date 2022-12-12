@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.18)
 
 project(btpro VERSION 3.0.0 LANGUAGES CXX)
 
@@ -9,6 +9,6 @@ if (WIN32)
   add_definitions(-DNOMINMAX)
 endif()
 
-add_library(btpro INTERFACE include/)
+add_library(btpro INTERFACE)
 
 target_include_directories(btpro INTERFACE include/)

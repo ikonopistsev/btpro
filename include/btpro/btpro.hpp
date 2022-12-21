@@ -43,6 +43,13 @@ static inline void startup(unsigned char h = 2, unsigned char l = 2)
     static const net::launch launch(h, l);
 }
 
+template<class T>
+T assert_handle(T handle) noexcept
+{
+    assert(handle);
+    return handle;
+}
+
 namespace detail {
 
 static inline void check_result(const char* what, int result)

@@ -6,102 +6,82 @@
 
 namespace btpro {
 
-class uri
+using uri_handle_type = evhttp_uri*;
+
+class uri final
 {
 public:
-    using handle_type = evhttp_uri*;
-    using uri_ptr_type = std::unique_ptr<evhttp_uri,
-        decltype(&evhttp_uri_free)>;
+    using handle_type = uri_handle_type;
 
 private:
-    uri_ptr_type handle_;
-    std::string_view user_{};
-    std::string_view passcode_{};
-
-    constexpr static auto npos = std::string_view::npos;
-
-    auto split_auth(std::string_view auth) noexcept
+    struct deallocate
     {
-        auto i = auth.find(':');
-        if (i == npos)
-            return std::make_pair(auth, std::string_view());
+        void operator()(handle_type ptr) noexcept 
+        { 
+            evhttp_uri_free(ptr); 
+        }
+    };
+    using ptr_type = std::unique_ptr<evhttp_uri, deallocate>;
+    ptr_type handle_{};
 
-        return std::make_pair(auth.substr(0, i), auth.substr(i + 1));
-    }
+    using sv = std::string_view;
+    constexpr static auto npos = sv::npos;
 
 public:
-    uri()
-        : handle_(evhttp_uri_new(), evhttp_uri_free)
+    uri() = default;
+    uri(uri&&) = default;
+    uri& operator=(uri&&) = default;
+
+    explicit uri(const char *source_uri)
+        : handle_{detail::check_pointer("evhttp_uri_parse",
+            evhttp_uri_parse(source_uri))}
     {
-        if (!handle_)
-            throw std::runtime_error("evhttp_uri_new");
+        assert(source_uri);
     }
 
-    uri(std::string_view str)
-        : handle_(nullptr, evhttp_uri_free)
-    {
-        auto p = evhttp_uri_parse(str.data());
-        if (!p)
-            throw std::runtime_error("evhttp_uri_parse");
-
-        auto ui = evhttp_uri_get_userinfo(p);
-        if (ui)
-        {
-            auto cr = split_auth(ui);
-            user_ = std::get<0>(cr);
-            passcode_ = std::get<1>(cr);
-        }
-
-        handle_.reset(p);
-    }
+    explicit uri(const std::string& source_uri)
+        : uri{source_uri.c_str()}
+    {   }
 
     handle_type handle() const noexcept
     {
-        auto handle = handle_.get();
-        assert(handle);
-        return handle;
+        return handle_.get();
     }
 
     std::string_view scheme() const noexcept
     {
-        auto result = evhttp_uri_get_scheme(handle());
-        if (result)
-            return std::string_view(result);
-
-        return std::string_view();
+        auto rc = evhttp_uri_get_scheme(assert_handle(handle()));
+        return (rc) ? sv{rc} : sv{};
     }
 
     std::string_view userinfo() const noexcept
     {
-        auto result = evhttp_uri_get_userinfo(handle());
-        if (result)
-            return std::string_view(result);
-
-        return std::string_view();
+        auto rc = evhttp_uri_get_userinfo(assert_handle(handle()));
+        return (rc) ? sv{rc} : sv{};
     }
 
-    std::string_view user() const noexcept
+    static inline auto split_auth(std::string_view auth) noexcept
     {
-        return user_;
+        auto i = auth.find(':');
+        return (i == npos) ?
+            std::make_pair(auth, sv{}) :
+            std::make_pair(auth.substr(0, i), auth.substr(i + 1));
     }
 
-    std::string_view passcode() const noexcept
+    auto auth() noexcept
     {
-        return passcode_;
+        return split_auth(userinfo());
     }
 
     std::string_view host() const noexcept
     {
-        auto result = evhttp_uri_get_host(handle());
-        if (result)
-            return std::string_view(result);
-
-        return std::string_view();
+        auto rc = evhttp_uri_get_host(assert_handle(handle()));
+        return (rc) ? sv{rc} : sv{};
     }
 
     int port() const noexcept
     {
-        return evhttp_uri_get_port(handle());
+        return evhttp_uri_get_port(assert_handle(handle()));
     }
 
     int port(int def) const noexcept
@@ -112,11 +92,8 @@ public:
 
     std::string_view path() const noexcept
     {
-        auto result = evhttp_uri_get_path(handle());
-        if (result)
-            return std::string_view(result);
-
-        return std::string_view();
+        auto rc = evhttp_uri_get_path(assert_handle(handle()));
+        return (rc) ? sv{rc} : sv{};
     }
 
     std::string_view rpath() const noexcept
@@ -127,20 +104,14 @@ public:
 
     std::string_view query() const noexcept
     {
-        auto result = evhttp_uri_get_query(handle());
-        if (result)
-            return std::string_view(result);
-
-        return std::string_view();
+        auto rc = evhttp_uri_get_query(assert_handle(handle()));
+        return (rc) ? sv{rc} : sv{};
     }
 
     std::string_view fragment() const noexcept
     {
-        auto result = evhttp_uri_get_fragment(handle());
-        if (result)
-            return std::string_view(result);
-
-        return std::string_view();
+        auto rc = evhttp_uri_get_fragment(handle());
+        return (rc) ? sv{rc} : sv{};
     }
 
     std::string addr() const
@@ -175,4 +146,4 @@ public:
     }
 };
 
-} // namespace capst
+} // namespace btpro

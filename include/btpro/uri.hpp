@@ -60,17 +60,17 @@ public:
         return (rc) ? sv{rc} : sv{};
     }
 
-    static inline auto split_auth(std::string_view auth) noexcept
+    static inline auto split_userinfo(std::string_view userinfo) noexcept
     {
-        auto i = auth.find(':');
+        auto i = userinfo.find(':');
         return (i == npos) ?
-            std::make_pair(auth, sv{}) :
-            std::make_pair(auth.substr(0, i), auth.substr(i + 1));
+            std::make_pair(userinfo, sv{}) :
+            std::make_pair(userinfo.substr(0, i), userinfo.substr(i + 1));
     }
 
-    auto auth() noexcept
+    auto auth() const noexcept
     {
-        return split_auth(userinfo());
+        return split_userinfo(userinfo());
     }
 
     std::string_view host() const noexcept
